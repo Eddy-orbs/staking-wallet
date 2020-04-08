@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
-  "homepage": "https://orbs-network.github.io/staking",
+  "homepage": "https://eddy-orbs.github.io/staking",
   "engines": {
     "node": "10.17.0"
   },
@@ -17,7 +17,7 @@
     "dev": "cross-env NODE_ENV=development TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack-dev-server -w",
     "dev-prod": "cross-env NODE_ENV=production TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack-dev-server -w",
     "build-server": "tsc -p ./src/server",
-    "deploy": "rm -rf ./dist && npm run build && cross-env DEPLOY_REPO=staking DEPLOY_USER=orbs-network ./scripts/deploy.sh"
+    "deploy": "rm -rf ./dist && npm run build && cross-env DEPLOY_REPO=staking DEPLOY_USER=Eddy-orbs ./scripts/deploy.sh"
   },
   "keywords": [
     "typescript",
@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/orbs-network/staking-wallet.git"
+    "url": "https://github.com/Eddy-orbs/staking-wallet.git"
   },
   "license": "MIT",
   "author": "Gil Amran",
