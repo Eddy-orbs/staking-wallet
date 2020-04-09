@@ -74,6 +74,8 @@ export const ConnectWalletSection = observer(() => {
     pressedOnInstallMetamask.setTrue();
   }, [pressedOnInstallMetamask]);
 
+  const providerName = cryptoWalletIntegrationStore.providerName;
+
   const installOrConnectMetamaskButton = useMemo(() => {
     if (walletConnectionState === 'connect') {
       return (
@@ -196,6 +198,8 @@ export const ConnectWalletSection = observer(() => {
           <Grid item style={{ paddingRight: 0, paddingLeft: 0 }}>
             {installOrConnectMetamaskButton}
           </Grid>
+
+          {providerName}
 
           {/* TODO : FUTURE : Move the ticker to a stand alone component */}
           {shouldDisplayLegalTicker && (

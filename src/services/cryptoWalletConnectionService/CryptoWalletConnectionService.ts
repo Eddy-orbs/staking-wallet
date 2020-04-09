@@ -8,12 +8,23 @@ export class CryptoWalletConnectionService implements ICryptoWalletConnectionSer
   private web3: Web3;
   public readonly hasEthereumProvider: boolean;
   public readonly isMetamaskInstalled: boolean;
+  public readonly providerName: string;
 
   constructor(private ethereum: IEthereumProvider) {
+    const anyProvider = ethereum as any;
     this.hasEthereumProvider = this.ethereum !== undefined;
-    this.isMetamaskInstalled = this.hasEthereumProvider && this.ethereum.isMetaMask;
+    this.isMetamaskInstalled = this.hasEthereumProvider && (this.ethereum.isMetaMask);
     if (this.isMetamaskInstalled) {
       this.web3 = new Web3(this.ethereum as any);
+      this.providerName = "Meta mask";
+    }
+
+    if (anyProvider.isTrust) {
+      console.log('isTrust');
+      this.providerName = "Trust wallet";
+    } else if (anyProvider.isImToken) {
+      console.log('isImToken');
+      this.providerName = "ImToken";
     }
   }
 
@@ -41,6 +52,10 @@ export class CryptoWalletConnectionService implements ICryptoWalletConnectionSer
 
   async getMainAddress(): Promise<string> {
     return this.ethereum.selectedAddress;
+  }
+
+  getProviderName() : string {
+    return this.providerName;
   }
 
   // Event listeners
