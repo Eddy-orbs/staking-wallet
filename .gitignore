@@ -5,4 +5,5 @@ node_modules
 .DS_Store
 local/
 contracts/
+docs/
 src/translations/syncTranslations.zsh
