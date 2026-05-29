@@ -12,7 +12,20 @@ export type Eip1193Provider = {
   isMetaMask?: boolean;
   isTrust?: boolean;
   isImToken?: boolean;
+  isRabby?: boolean;
+  isEnkrypt?: boolean;
+  isBraveWallet?: boolean;
+  isCoinbaseWallet?: boolean;
   isWalletConnect?: boolean;
+  providers?: Eip1193Provider[];
+};
+
+export type InstalledWallet = {
+  id: string;
+  name: string;
+  icon?: string;
+  provider: Eip1193Provider;
+  rdns?: string;
 };
 
 export type ConnectedWallet = {
@@ -27,4 +40,6 @@ export type ConnectedWallet = {
 export type ConnectWalletOptions = {
   providerType?: WalletProviderType;
   targetChainId?: number;
+  provider?: Eip1193Provider;
+  walletName?: string;
 };

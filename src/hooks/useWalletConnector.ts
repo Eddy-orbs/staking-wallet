@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { MobXProviderContext } from 'mobx-react';
 import { useAppContext } from '../context/app-context';
-import { walletConnection, WalletProviderType } from '../services/wallet-connection';
+import { ConnectWalletOptions, walletConnection, WalletProviderType } from '../services/wallet-connection';
 
 function getConnectionErrorMessage(error: any) {
   const message = error && error.message ? error.message : '';
@@ -22,14 +22,18 @@ function useWalletConnector() {
   const [showWrongNetworkPopup, setShowWrongNetworkPopup] = useState(false);
   const [userChainId, setUserChainId] = useState<number | null>(null);
 
-  const connect = async (providerType?: WalletProviderType) => {
+  const connect = async (optionsOrProviderType?: WalletProviderType | ConnectWalletOptions) => {
     setRejectedConnection(false);
     setConnectionErrorMessage('');
     setConnectLoading(true);
 
     try {
+      const options =
+        typeof optionsOrProviderType === 'string'
+          ? { providerType: optionsOrProviderType }
+          : optionsOrProviderType || {};
       const connectedWallet = await walletConnection.connect({
-        providerType,
+        ...options,
         targetChainId: Number(chainId),
       });
 

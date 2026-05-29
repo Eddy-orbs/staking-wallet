@@ -3,7 +3,7 @@ import config from '../../../config';
 import { DEFAULT_CHAIN } from '../../constants';
 import { getSupportedChains } from '../../utils';
 import { web3Modal } from '../web3modal';
-import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, WalletProviderType } from './types';
+import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, InstalledWallet, WalletProviderType } from './types';
 
 const WALLETCONNECT_UMD_URL = 'https://unpkg.com/@walletconnect/ethereum-provider@2.23.9/dist/index.umd.js';
 const LAST_PROVIDER_KEY = 'orbs.walletConnection.lastProviderType';
@@ -69,6 +69,19 @@ function getMetadata() {
   };
 }
 
+function getWalletConnectChains(targetChainId?: number): number[] {
+  const configuredChains = getSupportedChains();
+  const supportedChains = WALLETCONNECT_SUPPORTED_CHAINS.filter((chainId) => {
+    const network = config.networks[chainId];
+    return network && network.rpcUrls && network.rpcUrls[0];
+  });
+
+  const chains = supportedChains.length ? supportedChains : configuredChains;
+  const selectedChain = targetChainId && chains.includes(targetChainId) ? targetChainId : Number(DEFAULT_CHAIN);
+
+  return [selectedChain, ...chains.filter((chainId) => chainId !== selectedChain)];
+}
+
 function getRpcMap() {
   return getWalletConnectChains().reduce((rpcMap, chainId) => {
     const network = config.networks[chainId];
@@ -78,20 +91,6 @@ function getRpcMap() {
 
     return rpcMap;
   }, {} as { [chainId: number]: string });
-}
-
-function getWalletConnectChains(targetChainId?: number): number[] {
-  const configuredChains = getSupportedChains();
-  const supportedChains = WALLETCONNECT_SUPPORTED_CHAINS.filter((chainId) => {
-    const network = config.networks[chainId];
-    return network && network.rpcUrls && network.rpcUrls[0];
-  });
-
-  const chains = supportedChains.length ? supportedChains : configuredChains;
-  const selectedChain =
-    targetChainId && chains.includes(targetChainId) ? targetChainId : Number(DEFAULT_CHAIN);
-
-  return [selectedChain, ...chains.filter((chainId) => chainId !== selectedChain)];
 }
 
 function getSwitchErrorCode(error: any): number | string | undefined {
@@ -168,6 +167,104 @@ async function readChainId(provider: Eip1193Provider): Promise<number | null> {
   return web3.eth.getChainId();
 }
 
+function getLegacyInjectedProviders(): Eip1193Provider[] {
+  const providers: Eip1193Provider[] = [];
+  const ethereum = (window as any).ethereum;
+  const onto = (window as any).onto;
+
+  if (ethereum && Array.isArray(ethereum.providers)) {
+    providers.push(...ethereum.providers);
+  } else if (ethereum) {
+    providers.push(ethereum);
+  }
+
+  if (onto) {
+    providers.push(onto);
+  }
+
+  return providers;
+}
+
+function getInjectedWalletId(name: string, provider: Eip1193Provider, index: number) {
+  return `${name.toLowerCase().replace(/\s+/g, '-')}-${provider.isMetaMask ? 'metamask' : index}`;
+}
+
+function getInjectedWalletName(provider: Eip1193Provider): string {
+  if (provider.isEnkrypt) {
+    return 'Enkrypt';
+  }
+
+  if (provider.isRabby) {
+    return 'Rabby Wallet';
+  }
+
+  if (provider.isBraveWallet) {
+    return 'Brave Wallet';
+  }
+
+  if (provider.isCoinbaseWallet) {
+    return 'Coinbase Wallet';
+  }
+
+  if (provider.isMetaMask) {
+    return 'MetaMask';
+  }
+
+  if (provider.isTrust) {
+    return 'Trust Wallet';
+  }
+
+  if (provider.isImToken) {
+    return 'ImToken';
+  }
+
+  return 'Browser Wallet';
+}
+
+function addInstalledWallet(wallets: InstalledWallet[], wallet: InstalledWallet) {
+  const alreadyExists = wallets.some(
+    (item) =>
+      item.provider === wallet.provider ||
+      (item.rdns && wallet.rdns && item.rdns === wallet.rdns) ||
+      item.id === wallet.id,
+  );
+
+  if (!alreadyExists) {
+    wallets.push(wallet);
+  }
+}
+
+async function discoverInstalledWallets(): Promise<InstalledWallet[]> {
+  const wallets: InstalledWallet[] = [];
+  const eip6963Providers = await discoverEip6963Providers();
+
+  eip6963Providers.forEach((item, index) => {
+    if (!item.provider || !item.info) {
+      return;
+    }
+
+    const name = item.info.name || getInjectedWalletName(item.provider);
+    addInstalledWallet(wallets, {
+      id: item.info.uuid || item.info.rdns || getInjectedWalletId(name, item.provider, index),
+      name,
+      icon: item.info.icon,
+      provider: item.provider,
+      rdns: item.info.rdns,
+    });
+  });
+
+  getLegacyInjectedProviders().forEach((provider, index) => {
+    const name = getInjectedWalletName(provider);
+    addInstalledWallet(wallets, {
+      id: getInjectedWalletId(name, provider, index),
+      name,
+      provider,
+    });
+  });
+
+  return wallets;
+}
+
 function waitForWalletConnectEvent(provider: Eip1193Provider, eventName: string): Promise<void> {
   return new Promise((resolve) => {
     if (!provider.on) {
@@ -197,22 +294,6 @@ async function connectWalletConnectSession(provider: Eip1193Provider, targetChai
       setTimeout(() => reject(new Error('WalletConnect connection timed out')), WALLETCONNECT_CONNECT_TIMEOUT_MS),
     ),
   ]);
-}
-
-function getInjectedWalletName(provider: Eip1193Provider): string {
-  if (provider.isMetaMask) {
-    return 'MetaMask';
-  }
-
-  if (provider.isTrust) {
-    return 'Trust Wallet';
-  }
-
-  if (provider.isImToken) {
-    return 'ImToken';
-  }
-
-  return 'Browser Wallet';
 }
 
 function setLastProvider(providerType: WalletProviderType | null) {
@@ -285,19 +366,21 @@ async function createWalletConnectProvider(targetChainId?: number): Promise<Eip1
   return walletConnectProvider;
 }
 
-async function connectInjected(): Promise<ConnectedWallet> {
+async function connectInjected(options: ConnectWalletOptions = {}): Promise<ConnectedWallet> {
   let provider: Eip1193Provider;
-  let walletName: string | null = null;
+  let walletName: string | null = options.walletName || null;
 
-  if (!(window as any).ethereum && !(window as any).onto) {
-    const eip6963Providers = await discoverEip6963Providers();
-    const selected = eip6963Providers[0];
+  if (options.provider) {
+    provider = options.provider;
+  } else if (!(window as any).ethereum && !(window as any).onto) {
+    const installedWallets = await discoverInstalledWallets();
+    const selected = installedWallets[0];
     if (!selected) {
       throw new Error('No browser wallet provider found');
     }
 
     provider = selected.provider;
-    walletName = selected.info && selected.info.name;
+    walletName = selected.name;
   } else {
     provider = await web3Modal.connect();
   }
@@ -364,7 +447,7 @@ export const walletConnection = {
     const providerType =
       options.providerType || ((window as any).ethereum || (window as any).onto ? 'injected' : 'walletconnect');
 
-    return providerType === 'walletconnect' ? connectWalletConnect(options.targetChainId) : connectInjected();
+    return providerType === 'walletconnect' ? connectWalletConnect(options.targetChainId) : connectInjected(options);
   },
 
   async restore(options: ConnectWalletOptions = {}): Promise<ConnectedWallet | null> {
@@ -411,6 +494,8 @@ export const walletConnection = {
       await switchProviderNetwork(provider, targetChainId);
     }
   },
+
+  discoverInstalledWallets,
 };
 
 export * from './types';

@@ -20,7 +20,7 @@ import WrongNetworkPopup from './WrongNetworkPopup';
 import WalletOptionsDialog from './WalletOptionsDialog';
 import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
 import useWalletConnector from '../../hooks/useWalletConnector';
-import { WalletProviderType } from '../../services/wallet-connection';
+import { ConnectWalletOptions } from '../../services/wallet-connection';
 import CustomSnackbar from '../../components/snackbar/custom-snackbar';
 
 type TWalletConnectionPhase = 'install' | 'connect';
@@ -59,9 +59,9 @@ const ConnectWalletSection = observer(() => {
   }, []);
 
   const handleWalletSelected = useCallback(
-    async (providerType: WalletProviderType) => {
+    async (options: ConnectWalletOptions) => {
       setShowWalletOptions(false);
-      await connect(providerType);
+      await connect(options);
     },
     [connect],
   );

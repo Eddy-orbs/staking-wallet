@@ -61,6 +61,7 @@ export interface IWalletInfoSectionTranslations {
 export interface IConnectWalletSectionTranslations {
   connectYourAccount: string;
   selectWallet: string;
+  installedWallets: string;
   popularWallets: string;
   metamask: string;
   browserWallet: string;

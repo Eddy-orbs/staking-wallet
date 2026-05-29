@@ -20,7 +20,7 @@ import { CommonActionButton } from '../base/CommonActionButton';
 import WalletOptionsDialog from '../../sections/connect-wallet/WalletOptionsDialog';
 import WrongNetworkPopup from '../../sections/connect-wallet/WrongNetworkPopup';
 import useWalletConnector from '../../hooks/useWalletConnector';
-import { WalletProviderType } from '../../services/wallet-connection';
+import { ConnectWalletOptions } from '../../services/wallet-connection';
 import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
 import { useConnectWalletSectionTranslations } from '../../translations/translationsHooks';
 import PageLoader from '../loaders/page-loader';
@@ -159,9 +159,9 @@ export const Header = () => {
   }, []);
 
   const handleWalletSelected = useCallback(
-    async (providerType: WalletProviderType) => {
+    async (options: ConnectWalletOptions) => {
       setShowWalletOptions(false);
-      await connect(providerType);
+      await connect(options);
     },
     [connect],
   );

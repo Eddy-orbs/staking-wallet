@@ -9,6 +9,7 @@
   "getWalletTitle": "ウォレットを入手",
   "initialGreeting": "開始するには、まずウォレットを接続する必要があります",
   "installMetaMask": "まずはメタマスクをインストール",
+  "installedWallets": "インストール済み",
   "learnMore": "詳しく見る",
   "metamask": "MetaMask",
   "metamaskWalletDescription": "モバイルウォレットとブラウザー拡張機能",
