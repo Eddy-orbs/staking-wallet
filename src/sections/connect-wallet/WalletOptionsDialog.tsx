@@ -427,7 +427,7 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
     {
       key: 'walletconnect',
       labelKey: 'walletConnect',
-      providerType: 'walletconnect',
+      providerType: 'reown',
       icon: (
         <IconBox variant='walletconnect'>
           <WalletConnectGlyph />

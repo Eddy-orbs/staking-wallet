@@ -6,6 +6,7 @@ export type Eip1193Provider = {
   connect?: (options?: any) => Promise<any>;
   on?: (eventName: string, callback: (...args: any[]) => void) => void;
   disconnect?: () => Promise<void>;
+  setDefaultChain?: (chainId: string, rpcUrl?: string) => void | Promise<void>;
   accounts?: string[];
   chainId?: string | number;
   session?: any;

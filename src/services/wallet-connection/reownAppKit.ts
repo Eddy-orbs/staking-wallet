@@ -262,7 +262,7 @@ export async function waitForReownConnection(appKitInstance: any) {
   const currentSession = getConnectedSession(appKitInstance);
 
   if (currentSession) {
-    return currentSession.account;
+    return currentSession;
   }
 
   return new Promise((resolve, reject) => {
@@ -288,12 +288,13 @@ export async function waitForReownConnection(appKitInstance: any) {
       callback();
     };
 
-    const checkAccount = (account?: any) => {
+    const checkSession = (account?: any) => {
       const connectedAccount =
         account && account.isConnected && account.address ? account : getConnectedAccount(appKitInstance);
+      const provider = appKitInstance.getWalletProvider ? appKitInstance.getWalletProvider() : null;
 
-      if (connectedAccount) {
-        settle(() => resolve(connectedAccount));
+      if (connectedAccount && provider) {
+        settle(() => resolve({ account: connectedAccount, provider }));
       }
     };
 
@@ -311,7 +312,7 @@ export async function waitForReownConnection(appKitInstance: any) {
     };
 
     interval = setInterval(() => {
-      checkAccount();
+      checkSession();
       checkModal();
     }, 250);
     timeout = setTimeout(
@@ -319,7 +320,10 @@ export async function waitForReownConnection(appKitInstance: any) {
       REOWN_CONNECT_TIMEOUT_MS,
     );
 
-    cleanupCallbacks.push(appKitInstance.subscribeAccount((account: any) => checkAccount(account), EIP155_NAMESPACE));
+    cleanupCallbacks.push(appKitInstance.subscribeAccount((account: any) => checkSession(account), EIP155_NAMESPACE));
+    if (appKitInstance.subscribeProviders) {
+      cleanupCallbacks.push(appKitInstance.subscribeProviders(() => checkSession()));
+    }
     cleanupCallbacks.push(
       appKitInstance.subscribeState((state: any) => {
         modalWasOpen = modalWasOpen || !!state.open;
