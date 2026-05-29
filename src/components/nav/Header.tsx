@@ -16,6 +16,15 @@ import { hasInjectedProvider } from '../../constants';
 import useScrollDirection from '../../hooks/useScrollDirection';
 import useResize from '../../hooks/useResize';
 import { Link } from 'react-router-dom';
+import { CommonActionButton } from '../base/CommonActionButton';
+import WalletOptionsDialog from '../../sections/connect-wallet/WalletOptionsDialog';
+import WrongNetworkPopup from '../../sections/connect-wallet/WrongNetworkPopup';
+import useWalletConnector from '../../hooks/useWalletConnector';
+import { WalletProviderType } from '../../services/wallet-connection';
+import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
+import { useConnectWalletSectionTranslations } from '../../translations/translationsHooks';
+import PageLoader from '../loaders/page-loader';
+import CustomSnackbar from '../snackbar/custom-snackbar';
 
 const StyledToolBar = styled(Toolbar)<ToolbarProps>({});
 
@@ -34,7 +43,7 @@ const useStyes = makeStyles((theme) => ({
   container: (props: any) => ({
     position: 'relative',
     height: '100%',
-    borderBottom: props.scrollPosition <= 30  ? `0.5px solid ${theme.palette.secondary.main}` : null,
+    borderBottom: props.scrollPosition <= 30 ? `0.5px solid ${theme.palette.secondary.main}` : null,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
@@ -44,11 +53,14 @@ const useStyes = makeStyles((theme) => ({
     },
   }),
   root: (props: any) => ({
-    background: props.scrollPosition >= 30  ? '#000000' : props.width <= 600 ? '#000000' :  'transparent',
+    background: props.scrollPosition >= 30 ? '#000000' : props.width <= 600 ? '#000000' : 'transparent',
     transition: '0.3s all',
     position: 'fixed',
     height: '95px',
-    transform: props.scrollPosition >= 70 && props.width <= 600 && !props.scrollingTop ? 'translate(0, -100%)' : 'translate(0, 0%)',
+    transform:
+      props.scrollPosition >= 70 && props.width <= 600 && !props.scrollingTop
+        ? 'translate(0, -100%)'
+        : 'translate(0, 0%)',
     [theme.breakpoints.down('xs')]: {
       height: 'auto',
     },
@@ -65,11 +77,29 @@ const useStyes = makeStyles((theme) => ({
     [theme.breakpoints.down('xs')]: {
       display: 'block',
       marginBottom: '15px',
-      width: '100%',  
+      width: '100%',
     },
   },
   languageSelector: {
     marginLeft: 25,
+  },
+  connectButton: {
+    marginLeft: 15,
+    height: '35px !important',
+    width: '170px !important',
+    minWidth: '170px !important',
+    padding: '0 !important',
+    [theme.breakpoints.down('xs')]: {
+      width: '100% !important',
+      minWidth: 'unset !important',
+      marginLeft: 0,
+      marginBottom: 15,
+    },
+  },
+  connectButtonDesktop: {
+    [theme.breakpoints.down('xs')]: {
+      display: 'none',
+    },
   },
   networkIndicator: {
     marginLeft: 'auto',
@@ -95,7 +125,18 @@ const useStyes = makeStyles((theme) => ({
 export const Header = () => {
   const { chainId } = useContext(MobXProviderContext);
   const { mainAddress, isConnectedToWallet } = useCryptoWalletIntegrationStore();
-  
+  const [showWalletOptions, setShowWalletOptions] = useState(false);
+  const {
+    connect,
+    connectLoading,
+    connectionErrorMessage,
+    clearConnectionError,
+    showWrongNetworkPopup,
+    setShowWrongNetworkPopup,
+    userChainId,
+  } = useWalletConnector();
+  const connectWalletSectionTranslations = useConnectWalletSectionTranslations();
+
   const chainConfig = useMemo(() => getChainConfig(chainId), [chainId]);
   const TetraLogoAndIconSvg: any = chainConfig.ui.navbar.logo;
 
@@ -105,15 +146,54 @@ export const Header = () => {
 
   const classes = useStyes({ scrollPosition, scrollingTop, width });
 
+  const handleConnectClicked = useCallback(() => {
+    if (!walletLegalAgreement.getAccepted()) {
+      const connectWalletSection = document.getElementById('connectWalletSection');
+      if (connectWalletSection) {
+        connectWalletSection.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
+
+    setShowWalletOptions(true);
+  }, []);
+
+  const handleWalletSelected = useCallback(
+    async (providerType: WalletProviderType) => {
+      setShowWalletOptions(false);
+      await connect(providerType);
+    },
+    [connect],
+  );
+
   return (
     <>
+      <WrongNetworkPopup
+        userChainId={userChainId}
+        open={showWrongNetworkPopup}
+        onClose={() => setShowWrongNetworkPopup(false)}
+      />
+      <PageLoader open={connectLoading} />
+      <CustomSnackbar
+        show={!!connectionErrorMessage}
+        hide={clearConnectionError}
+        message={connectionErrorMessage}
+        variant='error'
+        autoHideDuration={6000}
+      />
+      <WalletOptionsDialog
+        open={showWalletOptions}
+        hasBrowserWallet={true}
+        onClose={() => setShowWalletOptions(false)}
+        onSelect={handleWalletSelected}
+      />
       <AppBar className={classes.root} style={{ boxShadow: 'none', border: `none` }}>
         <ContentContainer style={{ height: '100%' }}>
           <StyledToolBar disableGutters className={classes.container}>
             <Grid container direction={'row'} alignItems={'center'} justify={'space-between'} style={{ zIndex: 99 }}>
               <Grid item>
                 <Link to='/'>
-                <TetraLogoAndIconSvg className={classes.logo} />
+                  <TetraLogoAndIconSvg className={classes.logo} />
                 </Link>
               </Grid>
               {hasInjectedProvider && (
@@ -128,6 +208,14 @@ export const Header = () => {
                 </Grid>
               )}
 
+              {!isConnectedToWallet && (
+                <Grid item className={classes.connectButtonDesktop}>
+                  <CommonActionButton className={classes.connectButton} onClick={handleConnectClicked}>
+                    {connectWalletSectionTranslations('connectYourAccount')}
+                  </CommonActionButton>
+                </Grid>
+              )}
+
               <Grid item className={classes.languageSelector}>
                 <LanguagesSelector />
               </Grid>
@@ -136,6 +224,13 @@ export const Header = () => {
               {isConnectedToWallet && mainAddress && (
                 <Grid item className={classes.walletAddressMobile}>
                   <WalletAddress address={mainAddress} />
+                </Grid>
+              )}
+              {!isConnectedToWallet && (
+                <Grid item>
+                  <CommonActionButton className={classes.connectButton} onClick={handleConnectClicked}>
+                    {connectWalletSectionTranslations('connectYourAccount')}
+                  </CommonActionButton>
                 </Grid>
               )}
               {hasInjectedProvider && (

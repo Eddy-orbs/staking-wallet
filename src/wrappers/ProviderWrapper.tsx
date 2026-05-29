@@ -12,13 +12,13 @@ interface IProps {
 function ProviderWrapper({ children, chain }: IProps) {
   const [services, setServices] = useState(null);
   const [stores, setStores] = useState(null);
-  const { provider } = useAppContext();
+  const { provider, connectedWallet } = useAppContext();
 
   const init = async () => {
     setServices(null);
     setStores(null);
     try {
-      const res = await initApp(provider, chain);
+      const res = await initApp(provider, chain, connectedWallet);
       setServices(res.services);
       setStores(res.stores);
     } catch (error) {
@@ -30,8 +30,6 @@ function ProviderWrapper({ children, chain }: IProps) {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain, provider]);
-
-  
 
   return services && stores ? (
     <Provider {...services} {...stores} chainId={chain}>

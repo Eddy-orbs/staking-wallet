@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useCallback, useContext, useEffect } from 'react';
 import { Route, Switch } from 'react-router-dom';
 import { Header } from './components/nav/Header';
 import { MainAppPage } from './pages/MainAppPage';
@@ -25,24 +25,23 @@ export const App = observer(() => {
 
   const store = useCryptoWalletIntegrationStore();
 
+  const onConnected = useCallback(async () => {
+    const walletChainId = await getChainId();
+    addProviderListeners();
+    if (walletChainId === chainId) {
+      store.setIsConnected(true);
+    }
+  }, [addProviderListeners, chainId, getChainId, store]);
+
   useEffect(() => {
     if (provider) {
       onConnected();
-    }
-  }, [provider]);
-
-  const onConnected = async () => {
-    
-    const walletChainId = await getChainId();
-    addProviderListeners();
-    if (walletChainId !== chainId) {
-      
     } else {
-      store.setIsConnected(true);
+      store.setIsConnected(false);
     }
-  };
+  }, [onConnected, provider, store]);
 
-  return  (
+  return (
     <main>
       <Header />
       <ContentContainer id='appContainer'>
@@ -51,11 +50,9 @@ export const App = observer(() => {
           <Route exact path={routes.guardiansPage} component={GuardianDisplayPage} />
           <Route exact path={routes.main} component={MainAppPage} />
         </Switch>
-       
-      
       </ContentContainer>
       <AppVersion />
       <Footer />
     </main>
-  ) 
+  );
 });

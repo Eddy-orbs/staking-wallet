@@ -11,6 +11,7 @@ function PageLoader({ open }: Props) {
     <Dialog
       open={open}
       onClose={() => {}}
+      disableScrollLock
       style={{ border: 'none' }}
       PaperProps={{ style: { background: 'transparent', boxShadow:'none' } }}
     >

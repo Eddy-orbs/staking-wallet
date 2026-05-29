@@ -52,12 +52,33 @@ export interface ISectionTitlesTranslations {
 export interface IWalletInfoSectionTranslations {
   address: string;
   copy: string;
+  copyAddress: string;
+  disconnect: string;
   qr: string;
   notifications: string;
 }
 
 export interface IConnectWalletSectionTranslations {
   connectYourAccount: string;
+  selectWallet: string;
+  popularWallets: string;
+  metamask: string;
+  browserWallet: string;
+  walletConnect: string;
+  cancel: string;
+  closeWalletDialog: string;
+  whatIsWallet: string;
+  walletOwnAssetsTitle: string;
+  walletOwnAssetsDescription: string;
+  walletLoginTitle: string;
+  walletLoginDescription: string;
+  getWallet: string;
+  get: string;
+  getWalletTitle: string;
+  walletGuideEmptyTitle: string;
+  walletGuideEmptyDescription: string;
+  learnMore: string;
+  metamaskWalletDescription: string;
   installMetaMask: string;
   pleaseApproveAccountConnection: string;
   refreshPageAfterInstallingMetaMask: string;
@@ -66,6 +87,7 @@ export interface IConnectWalletSectionTranslations {
   wrongChain: string;
   pleaseChangeChain: string;
   swicthToDifferentChain: string;
+  networkSwitchFailed: string;
 }
 
 export interface IWizardsCommonsTranslations {
