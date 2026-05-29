@@ -14,6 +14,7 @@ import { useConnectWalletSectionTranslations } from '../../translations/translat
 import { CommonDialog } from '../../components/modal/CommonDialog';
 import useTheme from '@material-ui/core/styles/useTheme';
 import { WalletGuideIconVariant, walletGuideOptions } from './walletGuideOptions';
+import bitgetWalletLogo from '../../../assets/wallets/bitget-wallet.png';
 
 interface IProps {
   open: boolean;
@@ -24,7 +25,7 @@ interface IProps {
 
 type WalletOption = {
   key: string;
-  labelKey: 'metamask' | 'walletConnect' | 'browserWallet';
+  labelKey: 'metamask' | 'walletConnect' | 'browserWallet' | 'bitgetWallet';
   providerType: WalletProviderType;
   icon: React.ReactNode;
   hidden?: boolean;
@@ -331,6 +332,10 @@ const WalletGuideIcon = ({ icon, variant }: { icon?: string; variant: WalletGuid
     );
   }
 
+  if (variant === 'bitget') {
+    return <WalletGuideIconImage src={bitgetWalletLogo} alt='' />;
+  }
+
   return null;
 };
 
@@ -406,6 +411,7 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
   };
 
   const metaMaskWallet = getInstalledWalletByName(installedWallets, 'MetaMask');
+  const bitgetWallet = getInstalledWalletByName(installedWallets, 'Bitget');
   const popularWallets: WalletOption[] = [
     {
       key: 'metamask',
@@ -433,6 +439,17 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
           <WalletConnectGlyph />
         </IconBox>
       ),
+    },
+    {
+      key: 'bitget',
+      labelKey: 'bitgetWallet',
+      providerType: 'injected',
+      provider: bitgetWallet && bitgetWallet.provider,
+      walletName: 'Bitget Wallet',
+      walletId: bitgetWallet && bitgetWallet.id,
+      walletRdns: bitgetWallet && bitgetWallet.rdns,
+      installUrl: bitgetWallet ? undefined : 'https://web3.bitget.com/wallet-download',
+      icon: <WalletIconImage src={bitgetWallet && bitgetWallet.icon ? bitgetWallet.icon : bitgetWalletLogo} alt='' />,
     },
     {
       key: 'browser-wallet',
@@ -550,23 +567,28 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
             </WalletGuideHeader>
 
             <WalletInstallList>
-              {walletGuideOptions.map((wallet) => (
-                <WalletInstallRow key={wallet.key}>
-                  <WalletGuideIcon
-                    icon={wallet.key === 'metamask' && metaMaskWallet ? metaMaskWallet.icon : undefined}
-                    variant={wallet.iconVariant}
-                  />
-                  <Box>
-                    <WalletInstallName>{connectWalletSectionTranslations(wallet.nameKey)}</WalletInstallName>
-                    <WalletInstallDescription>
-                      {connectWalletSectionTranslations(wallet.descriptionKey)}
-                    </WalletInstallDescription>
-                  </Box>
-                  <WalletGetButton onClick={() => openWalletInstallPage(wallet.getUrl)}>
-                    {connectWalletSectionTranslations('get')}
-                  </WalletGetButton>
-                </WalletInstallRow>
-              ))}
+              {walletGuideOptions.map((wallet) => {
+                const installedGuideWallet =
+                  wallet.key === 'metamask' ? metaMaskWallet : wallet.key === 'bitget' ? bitgetWallet : undefined;
+
+                return (
+                  <WalletInstallRow key={wallet.key}>
+                    <WalletGuideIcon
+                      icon={installedGuideWallet && installedGuideWallet.icon}
+                      variant={wallet.iconVariant}
+                    />
+                    <Box>
+                      <WalletInstallName>{connectWalletSectionTranslations(wallet.nameKey)}</WalletInstallName>
+                      <WalletInstallDescription>
+                        {connectWalletSectionTranslations(wallet.descriptionKey)}
+                      </WalletInstallDescription>
+                    </Box>
+                    <WalletGetButton onClick={() => openWalletInstallPage(wallet.getUrl)}>
+                      {connectWalletSectionTranslations('get')}
+                    </WalletGetButton>
+                  </WalletInstallRow>
+                );
+              })}
             </WalletInstallList>
 
             <WalletGuideEmptyState>

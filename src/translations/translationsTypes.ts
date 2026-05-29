@@ -64,6 +64,7 @@ export interface IConnectWalletSectionTranslations {
   installedWallets: string;
   popularWallets: string;
   metamask: string;
+  bitgetWallet: string;
   browserWallet: string;
   walletConnect: string;
   cancel: string;
@@ -80,6 +81,7 @@ export interface IConnectWalletSectionTranslations {
   walletGuideEmptyDescription: string;
   learnMore: string;
   metamaskWalletDescription: string;
+  bitgetWalletDescription: string;
   installMetaMask: string;
   pleaseApproveAccountConnection: string;
   refreshPageAfterInstallingMetaMask: string;

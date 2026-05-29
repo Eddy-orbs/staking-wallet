@@ -1,5 +1,7 @@
 {
   "agreeToTheToUAndPrivacyPolicy": "{{termsOfUseText}} 및 {{privacyPolicyText}}에 동의합니다",
+  "bitgetWallet": "Bitget Wallet",
+  "bitgetWalletDescription": "멀티체인 지갑 및 확장 프로그램",
   "browserWallet": "브라우저 지갑",
   "cancel": "취소",
   "closeWalletDialog": "지갑 연결 창 닫기",

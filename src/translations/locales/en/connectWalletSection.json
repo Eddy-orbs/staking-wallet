@@ -1,5 +1,7 @@
 {
   "agreeToTheToUAndPrivacyPolicy": "I agree to the {{termsOfUseText}} and {{privacyPolicyText}}",
+  "bitgetWallet": "Bitget Wallet",
+  "bitgetWalletDescription": "Multi-chain wallet and browser extension",
   "browserWallet": "Browser Wallet",
   "cancel": "Cancel",
   "closeWalletDialog": "Close wallet dialog",

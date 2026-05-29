@@ -1,6 +1,6 @@
 import { IConnectWalletSectionTranslations } from '../../translations/translationsTypes';
 
-export type WalletGuideIconVariant = 'metamask';
+export type WalletGuideIconVariant = 'metamask' | 'bitget';
 
 export type WalletGuideOption = {
   key: string;
@@ -17,5 +17,12 @@ export const walletGuideOptions: WalletGuideOption[] = [
     descriptionKey: 'metamaskWalletDescription',
     getUrl: 'https://metamask.io/download/',
     iconVariant: 'metamask',
+  },
+  {
+    key: 'bitget',
+    nameKey: 'bitgetWallet',
+    descriptionKey: 'bitgetWalletDescription',
+    getUrl: 'https://web3.bitget.com/wallet-download',
+    iconVariant: 'bitget',
   },
 ];

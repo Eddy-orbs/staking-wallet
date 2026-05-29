@@ -1,5 +1,7 @@
 {
   "agreeToTheToUAndPrivacyPolicy": "私は{{termsOfUseText}}と{{privacyPolicyText}}に同意します。",
+  "bitgetWallet": "Bitget Wallet",
+  "bitgetWalletDescription": "マルチチェーンウォレットとブラウザー拡張機能",
   "browserWallet": "ブラウザーウォレット",
   "cancel": "キャンセル",
   "closeWalletDialog": "ウォレット接続画面を閉じる",
