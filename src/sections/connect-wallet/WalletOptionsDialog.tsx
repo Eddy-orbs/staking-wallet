@@ -30,6 +30,8 @@ type WalletOption = {
   hidden?: boolean;
   provider?: InstalledWallet['provider'];
   walletName?: string;
+  walletId?: string;
+  walletRdns?: string;
   installUrl?: string;
 };
 
@@ -398,6 +400,8 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
       providerType: wallet.providerType,
       provider: wallet.provider,
       walletName: wallet.walletName || (wallet.labelKey && connectWalletSectionTranslations(wallet.labelKey)),
+      walletId: wallet.walletId,
+      walletRdns: wallet.walletRdns,
     });
   };
 
@@ -409,6 +413,8 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
       providerType: 'injected',
       provider: metaMaskWallet && metaMaskWallet.provider,
       walletName: 'MetaMask',
+      walletId: metaMaskWallet && metaMaskWallet.id,
+      walletRdns: metaMaskWallet && metaMaskWallet.rdns,
       installUrl: metaMaskWallet ? undefined : 'https://metamask.io/download/',
       icon: (
         <WalletIcon icon={metaMaskWallet && metaMaskWallet.icon}>
@@ -468,6 +474,8 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
                       providerType: 'injected',
                       provider: wallet.provider,
                       walletName: wallet.name,
+                      walletId: wallet.id,
+                      walletRdns: wallet.rdns,
                     })
                   }
                 >

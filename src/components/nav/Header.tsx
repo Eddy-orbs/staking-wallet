@@ -1,7 +1,7 @@
 import { AppBarProps, Box, Grid, ToolbarProps, Typography } from '@material-ui/core';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
-import React, { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { LanguagesSelector } from './LanguagesSelector';
 import styled from 'styled-components';
 import { ContentContainer } from '../structure/ContentContainer';
@@ -16,8 +16,10 @@ import useScrollDirection from '../../hooks/useScrollDirection';
 import useResize from '../../hooks/useResize';
 import { Link } from 'react-router-dom';
 import { CommonActionButton } from '../base/CommonActionButton';
+import WalletOptionsDialog from '../../sections/connect-wallet/WalletOptionsDialog';
 import WrongNetworkPopup from '../../sections/connect-wallet/WrongNetworkPopup';
 import useWalletConnector from '../../hooks/useWalletConnector';
+import { ConnectWalletOptions } from '../../services/wallet-connection';
 import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
 import { useConnectWalletSectionTranslations } from '../../translations/translationsHooks';
 import PageLoader from '../loaders/page-loader';
@@ -122,6 +124,7 @@ const useStyes = makeStyles((theme) => ({
 export const Header = () => {
   const { chainId } = useContext(MobXProviderContext);
   const { mainAddress, isConnectedToWallet } = useCryptoWalletIntegrationStore();
+  const [showWalletOptions, setShowWalletOptions] = useState(false);
   const {
     connect,
     connectLoading,
@@ -142,7 +145,7 @@ export const Header = () => {
 
   const classes = useStyes({ scrollPosition, scrollingTop, width });
 
-  const handleConnectClicked = useCallback(async () => {
+  const handleConnectClicked = useCallback(() => {
     if (!walletLegalAgreement.getAccepted()) {
       const connectWalletSection = document.getElementById('connectWalletSection');
       if (connectWalletSection) {
@@ -151,8 +154,16 @@ export const Header = () => {
       return;
     }
 
-    await connect({ providerType: 'reown' });
-  }, [connect]);
+    setShowWalletOptions(true);
+  }, []);
+
+  const handleWalletSelected = useCallback(
+    async (options: ConnectWalletOptions) => {
+      setShowWalletOptions(false);
+      await connect(options);
+    },
+    [connect],
+  );
 
   return (
     <>
@@ -168,6 +179,12 @@ export const Header = () => {
         message={connectionErrorMessage}
         variant='error'
         autoHideDuration={6000}
+      />
+      <WalletOptionsDialog
+        open={showWalletOptions}
+        hasBrowserWallet={true}
+        onClose={() => setShowWalletOptions(false)}
+        onSelect={handleWalletSelected}
       />
       <AppBar className={classes.root} style={{ boxShadow: 'none', border: `none` }}>
         <ContentContainer style={{ height: '100%' }}>

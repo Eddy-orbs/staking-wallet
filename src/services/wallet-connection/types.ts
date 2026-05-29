@@ -42,4 +42,6 @@ export type ConnectWalletOptions = {
   targetChainId?: number;
   provider?: Eip1193Provider;
   walletName?: string;
+  walletId?: string;
+  walletRdns?: string;
 };

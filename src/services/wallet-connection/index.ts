@@ -18,6 +18,7 @@ import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, InstalledWallet
 
 const WALLETCONNECT_UMD_URL = 'https://unpkg.com/@walletconnect/ethereum-provider@2.23.9/dist/index.umd.js';
 const LAST_PROVIDER_KEY = 'orbs.walletConnection.lastProviderType';
+const LAST_INJECTED_WALLET_KEY = 'orbs.walletConnection.lastInjectedWallet';
 const WALLETCONNECT_SUPPORTED_CHAINS = [1, 137];
 const WALLETCONNECT_CONNECT_TIMEOUT_MS = 120000;
 const NETWORK_SWITCH_SETTLE_TIMEOUT_MS = 5000;
@@ -27,6 +28,12 @@ let walletConnectProvider: Eip1193Provider | null = null;
 const announcedProviders: any[] = [];
 const installedWalletListeners: Array<(wallets: InstalledWallet[]) => void> = [];
 let eip6963Listening = false;
+
+type InjectedWalletPreference = {
+  id?: string;
+  rdns?: string;
+  name?: string;
+};
 
 function isSameAnnouncedProvider(left: any, right: any) {
   if (!left || !right) {
@@ -166,6 +173,19 @@ async function readConnectedAccounts(provider: Eip1193Provider): Promise<string[
   }
 
   return readAccounts(provider);
+}
+
+async function readAuthorizedAccounts(provider: Eip1193Provider): Promise<string[]> {
+  if (provider.accounts && provider.accounts.length) {
+    return provider.accounts;
+  }
+
+  if (provider.request) {
+    const accounts = await provider.request({ method: 'eth_accounts' });
+    return accounts || [];
+  }
+
+  return [];
 }
 
 async function readChainId(provider: Eip1193Provider): Promise<number | null> {
@@ -454,6 +474,75 @@ function getLastProvider(): WalletProviderType | null {
   }
 }
 
+function setLastInjectedWallet(options: ConnectWalletOptions, provider: Eip1193Provider, walletName?: string | null) {
+  try {
+    const matchedWallet = getInstalledWalletsSnapshot().find((wallet) => wallet.provider === provider);
+    const preference: InjectedWalletPreference = {
+      id: options.walletId || (matchedWallet && matchedWallet.id),
+      rdns: options.walletRdns || (matchedWallet && matchedWallet.rdns),
+      name: walletName || options.walletName || (matchedWallet && matchedWallet.name),
+    };
+
+    window.localStorage.setItem(LAST_INJECTED_WALLET_KEY, JSON.stringify(preference));
+  } catch (error) {}
+}
+
+function getLastInjectedWallet(): InjectedWalletPreference | null {
+  try {
+    const preference = window.localStorage.getItem(LAST_INJECTED_WALLET_KEY);
+    return preference ? JSON.parse(preference) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function clearLastInjectedWallet() {
+  try {
+    window.localStorage.removeItem(LAST_INJECTED_WALLET_KEY);
+  } catch (error) {}
+}
+
+function findPreferredInjectedWallet(
+  wallets: InstalledWallet[],
+  preference: InjectedWalletPreference | null,
+): InstalledWallet | null {
+  if (!preference) {
+    return null;
+  }
+
+  return (
+    wallets.find((wallet) => preference.id && wallet.id === preference.id) ||
+    wallets.find((wallet) => preference.rdns && wallet.rdns === preference.rdns) ||
+    wallets.find((wallet) => preference.name && wallet.name === preference.name) ||
+    null
+  );
+}
+
+async function waitForPreferredInjectedWallet(
+  preference: InjectedWalletPreference | null,
+): Promise<InstalledWallet | null> {
+  if (!preference) {
+    return null;
+  }
+
+  listenForEip6963Providers();
+
+  for (const delay of [0, 100, 300, 750, 1500]) {
+    if (delay) {
+      await wait(delay);
+    }
+
+    requestEip6963Providers();
+
+    const wallet = findPreferredInjectedWallet(getInstalledWalletsSnapshot(), preference);
+    if (wallet) {
+      return wallet;
+    }
+  }
+
+  return null;
+}
+
 function loadWalletConnectScript(): Promise<void> {
   if ((window as any)['@walletconnect/ethereum-provider']) {
     return Promise.resolve();
@@ -528,6 +617,7 @@ async function connectInjected(options: ConnectWalletOptions = {}): Promise<Conn
   const chainId = await readChainId(provider);
 
   setLastProvider('injected');
+  setLastInjectedWallet(options, provider, walletName);
 
   return {
     provider,
@@ -535,6 +625,46 @@ async function connectInjected(options: ConnectWalletOptions = {}): Promise<Conn
     chainId,
     providerType: 'injected',
     walletName: walletName || getInjectedWalletName(provider),
+    isWalletConnect: false,
+  };
+}
+
+async function restoreInjected(targetChainId?: number): Promise<ConnectedWallet | null> {
+  if (getLastProvider() !== 'injected') {
+    return null;
+  }
+
+  const selected = await waitForPreferredInjectedWallet(getLastInjectedWallet());
+
+  if (!selected) {
+    if (web3Modal.cachedProvider) {
+      return connectInjected();
+    }
+
+    return null;
+  }
+
+  const accounts = await readAuthorizedAccounts(selected.provider);
+
+  if (!accounts.length) {
+    return null;
+  }
+
+  const chainId = await ensureProviderNetwork(selected.provider, targetChainId);
+
+  setLastProvider('injected');
+  setLastInjectedWallet(
+    { walletId: selected.id, walletRdns: selected.rdns, walletName: selected.name },
+    selected.provider,
+    selected.name,
+  );
+
+  return {
+    provider: selected.provider,
+    address: accounts[0] || null,
+    chainId,
+    providerType: 'injected',
+    walletName: selected.name,
     isWalletConnect: false,
   };
 }
@@ -661,8 +791,10 @@ export const walletConnection = {
       return reownWallet;
     }
 
-    if (web3Modal.cachedProvider) {
-      return connectInjected();
+    const injectedWallet = await restoreInjected(options.targetChainId);
+
+    if (injectedWallet) {
+      return injectedWallet;
     }
 
     return restoreWalletConnect(options.targetChainId);
@@ -681,12 +813,14 @@ export const walletConnection = {
 
     web3Modal.clearCachedProvider();
     setLastProvider(null);
+    clearLastInjectedWallet();
     walletConnectProvider = null;
   },
 
   clearCachedProvider(): void {
     web3Modal.clearCachedProvider();
     setLastProvider(null);
+    clearLastInjectedWallet();
   },
 
   async switchNetwork(
