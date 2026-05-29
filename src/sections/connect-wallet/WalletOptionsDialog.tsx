@@ -161,6 +161,16 @@ const WalletIconImage = styled.img({
   background: 'rgba(255, 255, 255, 0.1)',
 });
 
+const WalletGuideIconImage = styled.img({
+  width: 48,
+  height: 48,
+  borderRadius: 10,
+  marginRight: 0,
+  flex: '0 0 auto',
+  objectFit: 'contain',
+  background: 'transparent',
+});
+
 const WalletName = styled(Typography)({
   fontSize: 16,
   fontWeight: 700,
@@ -195,7 +205,7 @@ const WalletInstallDescription = styled(Typography)({
 const WalletGetButton = styled.button(({ theme }) => ({
   border: 0,
   borderRadius: 5,
-  background: theme.palette.secondary.main,
+  background: '#26B47E',
   color: '#ffffff',
   fontSize: 13,
   fontWeight: 800,
@@ -216,7 +226,7 @@ const WalletGuideEmptyState = styled(Box)({
 
 const IconBox = styled(Box)<{ variant: 'metamask' | 'walletconnect' | 'browser' | 'asset' }>(({ variant }) => {
   const backgrounds = {
-    metamask: 'linear-gradient(135deg, #f6851b 0%, #e2761b 48%, #763d16 100%)',
+    metamask: 'transparent',
     walletconnect: '#3b99fc',
     browser: '#1e5ad7',
     asset: 'linear-gradient(135deg, #6574ff 0%, #00d395 100%)',
@@ -264,7 +274,7 @@ const ImportButton = styled.button(({ theme }) => ({
   marginTop: 36,
   border: 0,
   borderRadius: 5,
-  background: theme.palette.secondary.main,
+  background: '#26B47E',
   color: '#ffffff',
   fontSize: 14,
   fontWeight: 800,
@@ -291,15 +301,26 @@ const AssetClusterIcon = () => (
 function MetaMaskGlyph() {
   return (
     <svg width='24' height='24' viewBox='0 0 24 24' aria-hidden='true'>
-      <path d='M3 4.5 9.7 2l4.6 3.4L21 4.5l-2.3 10.2-4.5 6.3-4.4-3.1L5.3 21 .8 14.7 3 4.5Z' fill='#f6851b' />
-      <path d='m9.7 2 .8 6.1-5.2-.7L3 4.5 9.7 2ZM14.3 5.4 21 4.5l-2.3 2.9-5.2.7.8-2.7Z' fill='#e2761b' />
-      <path d='m5.3 21 4.5-3.1 2.2 1.7 2.2-1.7 4.5 3.1-4.5-6.3H9.8L5.3 21Z' fill='#763d16' />
-      <path d='m5.3 7.4 5.2.7-.7 6.6-4.5-7.3ZM18.7 7.4l-4.5 7.3-.7-6.6 5.2-.7Z' fill='#f6851b' />
+      <path d='M3.2 2.7 10 5.2 8.8 8.1 2.5 5.9l.7-3.2Z' fill='#e2761b' />
+      <path d='m20.8 2.7-6.8 2.5 1.2 2.9 6.3-2.2-.7-3.2Z' fill='#e2761b' />
+      <path d='m4.9 14.5-1.7 5.2 5.6-1.5.7-3.9-4.6.2Z' fill='#e2761b' />
+      <path d='m19.1 14.5 1.7 5.2-5.6-1.5-.7-3.9 4.6.2Z' fill='#e2761b' />
+      <path d='m8.5 7.7 1.3 3.1-4.7.2 1.5-2.3 1.9-1Z' fill='#f6851b' />
+      <path d='m15.5 7.7-1.3 3.1 4.7.2-1.5-2.3-1.9-1Z' fill='#f6851b' />
+      <path d='m8.8 18.2 3.2 1 3.2-1-.8 2.5-2.4 1.4-2.4-1.4-.8-2.5Z' fill='#c0ad9e' />
+      <path d='m9.8 13.1 2.2.8 2.2-.8.4 2.9-2.6 1.5L9.4 16l.4-2.9Z' fill='#161616' />
+      <path d='m5.1 11 4.7-.2-.4 5.2-4.5-1.5.2-3.5Z' fill='#f6851b' />
+      <path d='m18.9 11-4.7-.2.4 5.2 4.5-1.5-.2-3.5Z' fill='#f6851b' />
+      <path d='m9.4 16 2.6 1.5 2.6-1.5.6 2.2-3.2 1-3.2-1 .6-2.2Z' fill='#d7c1b3' />
     </svg>
   );
 }
 
-const WalletGuideIcon = ({ variant }: { variant: WalletGuideIconVariant }) => {
+const WalletGuideIcon = ({ icon, variant }: { icon?: string; variant: WalletGuideIconVariant }) => {
+  if (icon) {
+    return <WalletGuideIconImage src={icon} alt='' />;
+  }
+
   if (variant === 'metamask') {
     return (
       <IconBox variant='metamask' style={{ width: 48, height: 48, borderRadius: 10, marginRight: 0, fontSize: 19 }}>
@@ -350,13 +371,12 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
   const openWalletGuide = () => window.open('https://ethereum.org/wallets/', '_blank');
 
   useEffect(() => {
-    if (open) {
-      setView('wallet-info');
-      walletConnection
-        .discoverInstalledWallets()
-        .then(setInstalledWallets)
-        .catch(() => setInstalledWallets([]));
+    if (!open) {
+      return;
     }
+
+    setView('wallet-info');
+    return walletConnection.subscribeInstalledWallets(setInstalledWallets);
   }, [open]);
 
   const handleClose = () => {
@@ -524,7 +544,10 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
             <WalletInstallList>
               {walletGuideOptions.map((wallet) => (
                 <WalletInstallRow key={wallet.key}>
-                  <WalletGuideIcon variant={wallet.iconVariant} />
+                  <WalletGuideIcon
+                    icon={wallet.key === 'metamask' && metaMaskWallet ? metaMaskWallet.icon : undefined}
+                    variant={wallet.iconVariant}
+                  />
                   <Box>
                     <WalletInstallName>{connectWalletSectionTranslations(wallet.nameKey)}</WalletInstallName>
                     <WalletInstallDescription>

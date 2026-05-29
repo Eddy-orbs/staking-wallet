@@ -1,7 +1,7 @@
 import { AppBarProps, Box, Grid, ToolbarProps, Typography } from '@material-ui/core';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo } from 'react';
 import { LanguagesSelector } from './LanguagesSelector';
 import styled from 'styled-components';
 import { ContentContainer } from '../structure/ContentContainer';
@@ -12,15 +12,12 @@ import WalletAddress from './WalletAddress';
 import { useCryptoWalletIntegrationStore } from '../../store/storeHooks';
 import useScroll from '../../hooks/useScroll';
 import { getChainConfig } from '../../utils';
-import { hasInjectedProvider } from '../../constants';
 import useScrollDirection from '../../hooks/useScrollDirection';
 import useResize from '../../hooks/useResize';
 import { Link } from 'react-router-dom';
 import { CommonActionButton } from '../base/CommonActionButton';
-import WalletOptionsDialog from '../../sections/connect-wallet/WalletOptionsDialog';
 import WrongNetworkPopup from '../../sections/connect-wallet/WrongNetworkPopup';
 import useWalletConnector from '../../hooks/useWalletConnector';
-import { ConnectWalletOptions } from '../../services/wallet-connection';
 import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
 import { useConnectWalletSectionTranslations } from '../../translations/translationsHooks';
 import PageLoader from '../loaders/page-loader';
@@ -125,7 +122,6 @@ const useStyes = makeStyles((theme) => ({
 export const Header = () => {
   const { chainId } = useContext(MobXProviderContext);
   const { mainAddress, isConnectedToWallet } = useCryptoWalletIntegrationStore();
-  const [showWalletOptions, setShowWalletOptions] = useState(false);
   const {
     connect,
     connectLoading,
@@ -146,7 +142,7 @@ export const Header = () => {
 
   const classes = useStyes({ scrollPosition, scrollingTop, width });
 
-  const handleConnectClicked = useCallback(() => {
+  const handleConnectClicked = useCallback(async () => {
     if (!walletLegalAgreement.getAccepted()) {
       const connectWalletSection = document.getElementById('connectWalletSection');
       if (connectWalletSection) {
@@ -155,16 +151,8 @@ export const Header = () => {
       return;
     }
 
-    setShowWalletOptions(true);
-  }, []);
-
-  const handleWalletSelected = useCallback(
-    async (options: ConnectWalletOptions) => {
-      setShowWalletOptions(false);
-      await connect(options);
-    },
-    [connect],
-  );
+    await connect({ providerType: 'reown' });
+  }, [connect]);
 
   return (
     <>
@@ -181,12 +169,6 @@ export const Header = () => {
         variant='error'
         autoHideDuration={6000}
       />
-      <WalletOptionsDialog
-        open={showWalletOptions}
-        hasBrowserWallet={true}
-        onClose={() => setShowWalletOptions(false)}
-        onSelect={handleWalletSelected}
-      />
       <AppBar className={classes.root} style={{ boxShadow: 'none', border: `none` }}>
         <ContentContainer style={{ height: '100%' }}>
           <StyledToolBar disableGutters className={classes.container}>
@@ -196,11 +178,9 @@ export const Header = () => {
                   <TetraLogoAndIconSvg className={classes.logo} />
                 </Link>
               </Grid>
-              {hasInjectedProvider && (
-                <Grid item className={classes.networkIndicator}>
-                  <NetworkIndicator chainId={chainId} />
-                </Grid>
-              )}
+              <Grid item className={classes.networkIndicator}>
+                <NetworkIndicator chainId={chainId} />
+              </Grid>
 
               {isConnectedToWallet && mainAddress && (
                 <Grid item className={classes.walletAddressDesktop}>
@@ -233,11 +213,9 @@ export const Header = () => {
                   </CommonActionButton>
                 </Grid>
               )}
-              {hasInjectedProvider && (
-                <Grid item className={classes.networkIndicatorMobile}>
-                  <NetworkIndicator chainId={chainId} />
-                </Grid>
-              )}
+              <Grid item className={classes.networkIndicatorMobile}>
+                <NetworkIndicator chainId={chainId} />
+              </Grid>
             </Grid>
           </StyledToolBar>
         </ContentContainer>

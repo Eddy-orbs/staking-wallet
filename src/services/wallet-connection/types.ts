@@ -1,4 +1,4 @@
-export type WalletProviderType = 'injected' | 'walletconnect';
+export type WalletProviderType = 'injected' | 'walletconnect' | 'reown';
 
 export type Eip1193Provider = {
   request?: (args: { method: string; params?: any[] }) => Promise<any>;

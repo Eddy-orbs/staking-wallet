@@ -7,7 +7,7 @@ function getConnectionErrorMessage(error: any) {
   const message = error && error.message ? error.message : '';
 
   if (message.includes('Missing REOWN_PROJECT_ID') || message.includes('WALLETCONNECT_PROJECT_ID')) {
-    return 'WalletConnect project id is not configured. Please set REOWN_PROJECT_ID and restart the dev server.';
+    return 'Reown project id is not configured. Please set REOWN_PROJECT_ID and restart the dev server.';
   }
 
   return message || 'Wallet connection failed. Please try again.';
@@ -25,13 +25,16 @@ function useWalletConnector() {
   const connect = async (optionsOrProviderType?: WalletProviderType | ConnectWalletOptions) => {
     setRejectedConnection(false);
     setConnectionErrorMessage('');
-    setConnectLoading(true);
+
+    const options =
+      typeof optionsOrProviderType === 'string' ? { providerType: optionsOrProviderType } : optionsOrProviderType || {};
+    const showBlockingLoader = options.providerType !== 'reown';
+
+    if (showBlockingLoader) {
+      setConnectLoading(true);
+    }
 
     try {
-      const options =
-        typeof optionsOrProviderType === 'string'
-          ? { providerType: optionsOrProviderType }
-          : optionsOrProviderType || {};
       const connectedWallet = await walletConnection.connect({
         ...options,
         targetChainId: Number(chainId),
@@ -53,7 +56,9 @@ function useWalletConnector() {
       console.error('Wallet connection failed', error);
       return false;
     } finally {
-      setConnectLoading(false);
+      if (showBlockingLoader) {
+        setConnectLoading(false);
+      }
     }
   };
 

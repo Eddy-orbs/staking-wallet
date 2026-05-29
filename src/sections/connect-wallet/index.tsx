@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { observer } from 'mobx-react';
 import Typography from '@material-ui/core/Typography';
 import Grid, { GridProps } from '@material-ui/core/Grid';
@@ -17,10 +17,8 @@ import styled from 'styled-components';
 import { Theme } from '@material-ui/core';
 import PageLoader from '../../components/loaders/page-loader';
 import WrongNetworkPopup from './WrongNetworkPopup';
-import WalletOptionsDialog from './WalletOptionsDialog';
 import { walletLegalAgreement } from '../../services/wallet-connection/legalAgreement';
 import useWalletConnector from '../../hooks/useWalletConnector';
-import { ConnectWalletOptions } from '../../services/wallet-connection';
 import CustomSnackbar from '../../components/snackbar/custom-snackbar';
 
 type TWalletConnectionPhase = 'install' | 'connect';
@@ -33,7 +31,6 @@ export const StyledSection = styled(Section)<GridProps>(({ theme }: { theme: The
 }));
 
 const ConnectWalletSection = observer(() => {
-  const [showWalletOptions, setShowWalletOptions] = useState(false);
   const {
     connect,
     connectLoading,
@@ -55,16 +52,8 @@ const ConnectWalletSection = observer(() => {
   const shouldDisplayLegalTicker = walletConnectionState === 'connect';
 
   const handleConnectClicked = useCallback(async () => {
-    setShowWalletOptions(true);
-  }, []);
-
-  const handleWalletSelected = useCallback(
-    async (options: ConnectWalletOptions) => {
-      setShowWalletOptions(false);
-      await connect(options);
-    },
-    [connect],
-  );
+    await connect({ providerType: 'reown' });
+  }, [connect]);
 
   const handleInstallClicked = useCallback(async () => {
     window.open('https://metamask.io/', '_blank');
@@ -88,12 +77,6 @@ const ConnectWalletSection = observer(() => {
         message={connectionErrorMessage}
         variant='error'
         autoHideDuration={6000}
-      />
-      <WalletOptionsDialog
-        open={showWalletOptions}
-        hasBrowserWallet={true}
-        onClose={() => setShowWalletOptions(false)}
-        onSelect={handleWalletSelected}
       />
       <PageLoader open={connectLoading} />
       <WalletConnectionInnerGrid

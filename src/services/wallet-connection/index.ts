@@ -3,6 +3,16 @@ import config from '../../../config';
 import { DEFAULT_CHAIN } from '../../constants';
 import { getSupportedChains } from '../../utils';
 import { web3Modal } from '../web3modal';
+import {
+  disconnectReownAppKit,
+  getReownAppKit,
+  getReownChainId,
+  getReownWalletName,
+  isReownAppKitReady,
+  isReownWalletConnect,
+  switchReownNetwork,
+  waitForReownConnection,
+} from './reownAppKit';
 import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, InstalledWallet, WalletProviderType } from './types';
 
 const WALLETCONNECT_UMD_URL = 'https://unpkg.com/@walletconnect/ethereum-provider@2.23.9/dist/index.umd.js';
@@ -13,33 +23,37 @@ const WALLETCONNECT_CONNECT_TIMEOUT_MS = 120000;
 let walletConnectScriptLoading: Promise<void> | null = null;
 let walletConnectProvider: Eip1193Provider | null = null;
 const announcedProviders: any[] = [];
+const installedWalletListeners: Array<(wallets: InstalledWallet[]) => void> = [];
 let eip6963Listening = false;
 
-function listenForEip6963Providers() {
-  if (eip6963Listening) {
+function isSameAnnouncedProvider(left: any, right: any) {
+  if (!left || !right) {
+    return false;
+  }
+
+  if (left.info && right.info && left.info.uuid && right.info.uuid) {
+    return left.info.uuid === right.info.uuid;
+  }
+
+  if (left.info && right.info && left.info.rdns && right.info.rdns) {
+    return left.info.rdns === right.info.rdns;
+  }
+
+  if (left.provider && right.provider && left.provider === right.provider) {
+    return (
+      (!left.info && !right.info) || (!!left.info && !!right.info && (left.info.name || '') === (right.info.name || ''))
+    );
+  }
+
+  return false;
+}
+
+function requestEip6963Providers() {
+  if (typeof window === 'undefined') {
     return;
   }
 
-  eip6963Listening = true;
-  window.addEventListener('eip6963:announceProvider', ((event: CustomEvent) => {
-    const detail = event.detail;
-    if (
-      detail &&
-      detail.provider &&
-      !announcedProviders.find((item) => item.info && detail.info && item.info.uuid === detail.info.uuid)
-    ) {
-      announcedProviders.push(detail);
-    }
-  }) as EventListener);
-}
-
-function discoverEip6963Providers(): Promise<any[]> {
-  listenForEip6963Providers();
   window.dispatchEvent(new Event('eip6963:requestProvider'));
-
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(announcedProviders), 150);
-  });
 }
 
 function normalizeChainId(chainId: string | number | null | undefined): number | null {
@@ -222,23 +236,27 @@ function getInjectedWalletName(provider: Eip1193Provider): string {
 }
 
 function addInstalledWallet(wallets: InstalledWallet[], wallet: InstalledWallet) {
-  const alreadyExists = wallets.some(
-    (item) =>
-      item.provider === wallet.provider ||
-      (item.rdns && wallet.rdns && item.rdns === wallet.rdns) ||
-      item.id === wallet.id,
-  );
+  const alreadyExists = wallets.some((item) => {
+    if (item.id === wallet.id || (item.rdns && wallet.rdns && item.rdns === wallet.rdns)) {
+      return true;
+    }
+
+    if (item.provider !== wallet.provider) {
+      return false;
+    }
+
+    return item.name === wallet.name || (!item.rdns && !wallet.rdns);
+  });
 
   if (!alreadyExists) {
     wallets.push(wallet);
   }
 }
 
-async function discoverInstalledWallets(): Promise<InstalledWallet[]> {
+function getInstalledWalletsSnapshot(): InstalledWallet[] {
   const wallets: InstalledWallet[] = [];
-  const eip6963Providers = await discoverEip6963Providers();
 
-  eip6963Providers.forEach((item, index) => {
+  announcedProviders.forEach((item, index) => {
     if (!item.provider || !item.info) {
       return;
     }
@@ -264,6 +282,82 @@ async function discoverInstalledWallets(): Promise<InstalledWallet[]> {
 
   return wallets;
 }
+
+function notifyInstalledWalletListeners() {
+  const wallets = getInstalledWalletsSnapshot();
+  installedWalletListeners.forEach((listener) => listener(wallets));
+}
+
+function listenForEip6963Providers() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (eip6963Listening) {
+    return;
+  }
+
+  eip6963Listening = true;
+  window.addEventListener('eip6963:announceProvider', ((event: CustomEvent) => {
+    const detail = event.detail;
+    if (detail && detail.provider && !announcedProviders.find((item) => isSameAnnouncedProvider(item, detail))) {
+      announcedProviders.push(detail);
+      notifyInstalledWalletListeners();
+    }
+  }) as EventListener);
+}
+
+function discoverEip6963Providers(): Promise<any[]> {
+  listenForEip6963Providers();
+  requestEip6963Providers();
+
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(announcedProviders), 150);
+  });
+}
+
+async function discoverInstalledWallets(): Promise<InstalledWallet[]> {
+  await discoverEip6963Providers();
+
+  return getInstalledWalletsSnapshot();
+}
+
+function subscribeInstalledWallets(listener: (wallets: InstalledWallet[]) => void) {
+  installedWalletListeners.push(listener);
+  listenForEip6963Providers();
+
+  const emitSnapshot = () => listener(getInstalledWalletsSnapshot());
+  const requestAndEmitSnapshot = () => {
+    requestEip6963Providers();
+    emitSnapshot();
+  };
+
+  requestAndEmitSnapshot();
+  const timers = [100, 300, 750, 1500].map((delay) => setTimeout(requestAndEmitSnapshot, delay));
+  const interval = setInterval(requestAndEmitSnapshot, 1000);
+
+  return () => {
+    const index = installedWalletListeners.indexOf(listener);
+    if (index >= 0) {
+      installedWalletListeners.splice(index, 1);
+    }
+
+    timers.forEach((timer) => clearTimeout(timer));
+    clearInterval(interval);
+  };
+}
+
+function initializeInstalledWalletDiscovery() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  listenForEip6963Providers();
+  requestEip6963Providers();
+  [100, 500, 1500].forEach((delay) => setTimeout(requestEip6963Providers, delay));
+}
+
+initializeInstalledWalletDiscovery();
 
 function waitForWalletConnectEvent(provider: Eip1193Provider, eventName: string): Promise<void> {
   return new Promise((resolve) => {
@@ -309,7 +403,9 @@ function setLastProvider(providerType: WalletProviderType | null) {
 function getLastProvider(): WalletProviderType | null {
   try {
     const providerType = window.localStorage.getItem(LAST_PROVIDER_KEY);
-    return providerType === 'walletconnect' || providerType === 'injected' ? providerType : null;
+    return providerType === 'walletconnect' || providerType === 'injected' || providerType === 'reown'
+      ? providerType
+      : null;
   } catch (error) {
     return null;
   }
@@ -442,15 +538,85 @@ async function restoreWalletConnect(targetChainId?: number): Promise<ConnectedWa
   };
 }
 
+async function connectReown(targetChainId?: number): Promise<ConnectedWallet> {
+  const appKit = getReownAppKit(targetChainId);
+
+  await appKit.open({ view: 'Connect', namespace: 'eip155' });
+
+  const account: any = await waitForReownConnection(appKit);
+  const provider = appKit.getWalletProvider() as Eip1193Provider;
+
+  if (!provider) {
+    throw new Error('Reown wallet provider was not available after connection');
+  }
+
+  if (targetChainId) {
+    await switchReownNetwork(targetChainId);
+  }
+
+  const providerChainId = normalizeChainId(getReownChainId(appKit)) || (await readChainId(provider));
+
+  setLastProvider('reown');
+
+  return {
+    provider,
+    address: account.address || null,
+    chainId: providerChainId,
+    providerType: 'reown',
+    walletName: getReownWalletName(appKit),
+    isWalletConnect: isReownWalletConnect(appKit),
+  };
+}
+
+async function restoreReown(targetChainId?: number): Promise<ConnectedWallet | null> {
+  if (getLastProvider() !== 'reown') {
+    return null;
+  }
+
+  const appKit = getReownAppKit(targetChainId);
+  const account = appKit.getAccount ? appKit.getAccount('eip155') : null;
+
+  if (!account || !account.isConnected || !account.address) {
+    return null;
+  }
+
+  const provider = appKit.getWalletProvider() as Eip1193Provider;
+
+  if (!provider) {
+    return null;
+  }
+
+  const chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainId(provider));
+
+  return {
+    provider,
+    address: account.address || null,
+    chainId,
+    providerType: 'reown',
+    walletName: getReownWalletName(appKit),
+    isWalletConnect: isReownWalletConnect(appKit),
+  };
+}
+
 export const walletConnection = {
   async connect(options: ConnectWalletOptions = {}): Promise<ConnectedWallet> {
     const providerType =
       options.providerType || ((window as any).ethereum || (window as any).onto ? 'injected' : 'walletconnect');
 
+    if (providerType === 'reown') {
+      return connectReown(options.targetChainId);
+    }
+
     return providerType === 'walletconnect' ? connectWalletConnect(options.targetChainId) : connectInjected(options);
   },
 
   async restore(options: ConnectWalletOptions = {}): Promise<ConnectedWallet | null> {
+    const reownWallet = await restoreReown(options.targetChainId);
+
+    if (reownWallet) {
+      return reownWallet;
+    }
+
     if (web3Modal.cachedProvider) {
       return connectInjected();
     }
@@ -459,6 +625,10 @@ export const walletConnection = {
   },
 
   async disconnect(): Promise<void> {
+    try {
+      await disconnectReownAppKit();
+    } catch (error) {}
+
     try {
       if (walletConnectProvider && walletConnectProvider.disconnect) {
         await walletConnectProvider.disconnect();
@@ -476,6 +646,13 @@ export const walletConnection = {
   },
 
   async switchNetwork(provider: Eip1193Provider, targetChainId: number): Promise<void> {
+    if (isReownAppKitReady()) {
+      try {
+        await switchReownNetwork(targetChainId);
+        return;
+      } catch (error) {}
+    }
+
     if (!provider || !provider.request) {
       throw new Error('Connected wallet does not support network switching');
     }
@@ -496,6 +673,8 @@ export const walletConnection = {
   },
 
   discoverInstalledWallets,
+
+  subscribeInstalledWallets,
 };
 
 export * from './types';
