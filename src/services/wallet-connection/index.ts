@@ -417,6 +417,12 @@ function getInstalledWalletsSnapshot(): InstalledWallet[] {
 
   getLegacyInjectedProviders().forEach((provider, index) => {
     const name = getInjectedWalletName(provider);
+    const hasEip6963Wallet = wallets.some((wallet) => wallet.rdns && wallet.name === name);
+
+    if (hasEip6963Wallet) {
+      return;
+    }
+
     addInstalledWallet(wallets, {
       id: getInjectedWalletId(name, provider, index),
       name,
