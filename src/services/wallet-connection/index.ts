@@ -11,6 +11,7 @@ import {
   isReownAppKitReady,
   isReownWalletConnect,
   switchReownNetwork,
+  waitForReownRestoredConnection,
   waitForReownConnection,
 } from './reownAppKit';
 import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, InstalledWallet, WalletProviderType } from './types';
@@ -19,6 +20,7 @@ const WALLETCONNECT_UMD_URL = 'https://unpkg.com/@walletconnect/ethereum-provide
 const LAST_PROVIDER_KEY = 'orbs.walletConnection.lastProviderType';
 const WALLETCONNECT_SUPPORTED_CHAINS = [1, 137];
 const WALLETCONNECT_CONNECT_TIMEOUT_MS = 120000;
+const NETWORK_SWITCH_SETTLE_TIMEOUT_MS = 5000;
 
 let walletConnectScriptLoading: Promise<void> | null = null;
 let walletConnectProvider: Eip1193Provider | null = null;
@@ -167,18 +169,59 @@ async function readConnectedAccounts(provider: Eip1193Provider): Promise<string[
 }
 
 async function readChainId(provider: Eip1193Provider): Promise<number | null> {
-  const providerChainId = normalizeChainId(provider.chainId);
-  if (providerChainId) {
-    return providerChainId;
-  }
-
   if (provider.request) {
     const chainId = await provider.request({ method: 'eth_chainId' });
     return normalizeChainId(chainId);
   }
 
+  const providerChainId = normalizeChainId(provider.chainId);
+  if (providerChainId) {
+    return providerChainId;
+  }
+
   const web3 = new Web3(provider as any);
   return web3.eth.getChainId();
+}
+
+function wait(delay: number) {
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+async function waitForProviderChain(provider: Eip1193Provider, targetChainId: number): Promise<number | null> {
+  const startedAt = Date.now();
+  let chainId = await readChainId(provider);
+
+  while (chainId !== targetChainId && Date.now() - startedAt < NETWORK_SWITCH_SETTLE_TIMEOUT_MS) {
+    await wait(250);
+    chainId = await readChainId(provider);
+  }
+
+  return chainId;
+}
+
+async function ensureProviderNetwork(provider: Eip1193Provider, targetChainId?: number): Promise<number | null> {
+  let chainId = await readChainId(provider);
+
+  if (!targetChainId || chainId === targetChainId) {
+    return chainId;
+  }
+
+  try {
+    await switchProviderNetwork(provider, targetChainId);
+  } catch (error) {
+    if (getSwitchErrorCode(error) !== 4902) {
+      throw error;
+    }
+
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [getAddChainParams(targetChainId)],
+    });
+    await switchProviderNetwork(provider, targetChainId);
+  }
+
+  chainId = await waitForProviderChain(provider, targetChainId);
+  return chainId;
 }
 
 function getLegacyInjectedProviders(): Eip1193Provider[] {
@@ -526,7 +569,7 @@ async function restoreWalletConnect(targetChainId?: number): Promise<ConnectedWa
   }
 
   const accounts = provider.request ? await provider.request({ method: 'eth_accounts' }) : [];
-  const chainId = await readChainId(provider);
+  const chainId = await ensureProviderNetwork(provider, targetChainId);
 
   return {
     provider,
@@ -574,19 +617,20 @@ async function restoreReown(targetChainId?: number): Promise<ConnectedWallet | n
   }
 
   const appKit = getReownAppKit(targetChainId);
-  const account = appKit.getAccount ? appKit.getAccount('eip155') : null;
+  const session = await waitForReownRestoredConnection(appKit);
 
-  if (!account || !account.isConnected || !account.address) {
+  if (!session) {
     return null;
   }
 
-  const provider = appKit.getWalletProvider() as Eip1193Provider;
+  const { account, provider } = session;
 
-  if (!provider) {
-    return null;
+  let chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainId(provider));
+
+  if (targetChainId && chainId !== targetChainId) {
+    await switchReownNetwork(targetChainId);
+    chainId = await waitForProviderChain(provider, targetChainId);
   }
-
-  const chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainId(provider));
 
   return {
     provider,
@@ -645,10 +689,15 @@ export const walletConnection = {
     setLastProvider(null);
   },
 
-  async switchNetwork(provider: Eip1193Provider, targetChainId: number): Promise<void> {
-    if (isReownAppKitReady()) {
+  async switchNetwork(
+    provider: Eip1193Provider,
+    targetChainId: number,
+    providerType?: WalletProviderType,
+  ): Promise<void> {
+    if (providerType === 'reown' && isReownAppKitReady()) {
       try {
         await switchReownNetwork(targetChainId);
+        await waitForProviderChain(provider, targetChainId);
         return;
       } catch (error) {}
     }
@@ -657,19 +706,7 @@ export const walletConnection = {
       throw new Error('Connected wallet does not support network switching');
     }
 
-    try {
-      await switchProviderNetwork(provider, targetChainId);
-    } catch (error) {
-      if (getSwitchErrorCode(error) !== 4902) {
-        throw error;
-      }
-
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [getAddChainParams(targetChainId)],
-      });
-      await switchProviderNetwork(provider, targetChainId);
-    }
+    await ensureProviderNetwork(provider, targetChainId);
   },
 
   discoverInstalledWallets,

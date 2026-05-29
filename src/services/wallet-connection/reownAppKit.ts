@@ -5,6 +5,7 @@ declare const require: any;
 
 const REOWN_SUPPORTED_CHAINS = [1, 137];
 const REOWN_CONNECT_TIMEOUT_MS = 120000;
+const REOWN_RESTORE_TIMEOUT_MS = 5000;
 const EIP155_NAMESPACE = 'eip155';
 
 let appKit: any = null;
@@ -204,11 +205,64 @@ function getConnectedAccount(appKitInstance: any) {
   return fallbackAddress ? { ...account, address: fallbackAddress, isConnected: true } : null;
 }
 
-export async function waitForReownConnection(appKitInstance: any) {
-  const currentAccount = getConnectedAccount(appKitInstance);
+function getConnectedSession(appKitInstance: any) {
+  const account = getConnectedAccount(appKitInstance);
+  const provider = appKitInstance.getWalletProvider ? appKitInstance.getWalletProvider() : null;
 
-  if (currentAccount) {
-    return currentAccount;
+  return account && provider ? { account, provider } : null;
+}
+
+export async function waitForReownRestoredConnection(appKitInstance: any) {
+  const currentSession = getConnectedSession(appKitInstance);
+
+  if (currentSession) {
+    return currentSession;
+  }
+
+  return new Promise<{ account: any; provider: any } | null>((resolve) => {
+    let settled = false;
+    let interval: any = null;
+    let timeout: any = null;
+    const cleanupCallbacks: Array<() => void> = [];
+
+    const cleanup = () => {
+      cleanupCallbacks.forEach((callback) => callback());
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+
+    const settle = (session: { account: any; provider: any } | null) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve(session);
+    };
+
+    const checkSession = () => {
+      const session = getConnectedSession(appKitInstance);
+
+      if (session) {
+        settle(session);
+      }
+    };
+
+    interval = setInterval(checkSession, 250);
+    timeout = setTimeout(() => settle(null), REOWN_RESTORE_TIMEOUT_MS);
+
+    if (appKitInstance.subscribeAccount) {
+      cleanupCallbacks.push(appKitInstance.subscribeAccount(() => checkSession(), EIP155_NAMESPACE));
+    }
+  });
+}
+
+export async function waitForReownConnection(appKitInstance: any) {
+  const currentSession = getConnectedSession(appKitInstance);
+
+  if (currentSession) {
+    return currentSession.account;
   }
 
   return new Promise((resolve, reject) => {

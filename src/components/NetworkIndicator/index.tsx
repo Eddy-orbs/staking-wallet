@@ -101,7 +101,7 @@ const ChainIndicator = observer(({ chainId }: IProps) => {
 
     try {
       window.sessionStorage.setItem(PENDING_NETWORK_SWITCH_CHAIN_KEY, String(id));
-      await walletConnection.switchNetwork(connectedWallet.provider, id);
+      await walletConnection.switchNetwork(connectedWallet.provider, id, connectedWallet.providerType);
       navigateToNetwork(id);
     } catch (error) {
       window.sessionStorage.removeItem(PENDING_NETWORK_SWITCH_CHAIN_KEY);
