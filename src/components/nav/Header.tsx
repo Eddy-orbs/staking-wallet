@@ -1,7 +1,7 @@
 import { AppBarProps, Box, Grid, ToolbarProps, Typography } from '@material-ui/core';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { LanguagesSelector } from './LanguagesSelector';
 import styled from 'styled-components';
 import { ContentContainer } from '../structure/ContentContainer';
@@ -34,9 +34,9 @@ const useStyes = makeStyles((theme) => ({
     },
   },
   toolbar: {
-    marginBottom: '7.5em',
+    marginBottom: '3.75em',
     [theme.breakpoints.down('sm')]: {
-      marginBottom: '10em',
+      marginBottom: '3.75em',
     },
   },
   container: (props: any) => ({
@@ -124,6 +124,8 @@ export const Header = () => {
   const { chainId } = useContext(MobXProviderContext);
   const { mainAddress, isConnectedToWallet } = useCryptoWalletIntegrationStore();
   const [showWalletOptions, setShowWalletOptions] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(95);
+  const headerRef = useRef<HTMLDivElement | null>(null);
   const {
     connect,
     connectLoading,
@@ -143,6 +145,35 @@ export const Header = () => {
   const [width] = useResize();
 
   const classes = useStyes({ scrollPosition, scrollingTop, width });
+
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (!headerRef.current) {
+        return;
+      }
+
+      const nextHeight = Math.ceil(headerRef.current.getBoundingClientRect().height);
+      setHeaderHeight((currentHeight) => (currentHeight === nextHeight ? currentHeight : nextHeight));
+    };
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+
+    const ResizeObserverConstructor = (window as any).ResizeObserver;
+    const resizeObserver = ResizeObserverConstructor ? new ResizeObserverConstructor(updateHeaderHeight) : null;
+
+    if (resizeObserver && headerRef.current) {
+      resizeObserver.observe(headerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [chainId, isConnectedToWallet, mainAddress, width]);
 
   const handleConnectClicked = useCallback(() => {
     if (!walletLegalAgreement.getAccepted()) {
@@ -185,7 +216,7 @@ export const Header = () => {
         onClose={() => setShowWalletOptions(false)}
         onSelect={handleWalletSelected}
       />
-      <AppBar className={classes.root} style={{ boxShadow: 'none', border: `none` }}>
+      <AppBar ref={headerRef} className={classes.root} style={{ boxShadow: 'none', border: `none` }}>
         <ContentContainer style={{ height: '100%' }}>
           <StyledToolBar disableGutters className={classes.container}>
             <Grid container direction={'row'} alignItems={'center'} justify={'space-between'} style={{ zIndex: 99 }}>
@@ -236,9 +267,8 @@ export const Header = () => {
           </StyledToolBar>
         </ContentContainer>
       </AppBar>
-      {/* DEV_NOTE : Second 'Toolbar' is a trick offered by MUI to keep the content properly below the fixed AppBar */}
-      {/* DEV_NOTE : We should add any 'bottom padding/margin' of the 'StyledAppBar' to the value we want to have from the page content*/}
-      <Toolbar className={classes.toolbar} />
+      {/* DEV_NOTE : Spacer keeps page content below the fixed AppBar, including multi-row mobile headers. */}
+      <div className={classes.toolbar} style={{ height: headerHeight }} />
     </>
   );
 };

@@ -15,6 +15,7 @@ import { CommonDialog } from '../../components/modal/CommonDialog';
 import useTheme from '@material-ui/core/styles/useTheme';
 import { WalletGuideIconVariant, walletGuideOptions } from './walletGuideOptions';
 import bitgetWalletLogo from '../../../assets/wallets/bitget-wallet.png';
+import metaMaskWalletLogo from '../../../assets/wallets/MetaMask-icon-fox-with-margins.svg';
 
 interface IProps {
   open: boolean;
@@ -301,35 +302,13 @@ const AssetClusterIcon = () => (
   </IconBox>
 );
 
-function MetaMaskGlyph() {
-  return (
-    <svg width='24' height='24' viewBox='0 0 24 24' aria-hidden='true'>
-      <path d='M3.2 2.7 10 5.2 8.8 8.1 2.5 5.9l.7-3.2Z' fill='#e2761b' />
-      <path d='m20.8 2.7-6.8 2.5 1.2 2.9 6.3-2.2-.7-3.2Z' fill='#e2761b' />
-      <path d='m4.9 14.5-1.7 5.2 5.6-1.5.7-3.9-4.6.2Z' fill='#e2761b' />
-      <path d='m19.1 14.5 1.7 5.2-5.6-1.5-.7-3.9 4.6.2Z' fill='#e2761b' />
-      <path d='m8.5 7.7 1.3 3.1-4.7.2 1.5-2.3 1.9-1Z' fill='#f6851b' />
-      <path d='m15.5 7.7-1.3 3.1 4.7.2-1.5-2.3-1.9-1Z' fill='#f6851b' />
-      <path d='m8.8 18.2 3.2 1 3.2-1-.8 2.5-2.4 1.4-2.4-1.4-.8-2.5Z' fill='#c0ad9e' />
-      <path d='m9.8 13.1 2.2.8 2.2-.8.4 2.9-2.6 1.5L9.4 16l.4-2.9Z' fill='#161616' />
-      <path d='m5.1 11 4.7-.2-.4 5.2-4.5-1.5.2-3.5Z' fill='#f6851b' />
-      <path d='m18.9 11-4.7-.2.4 5.2 4.5-1.5-.2-3.5Z' fill='#f6851b' />
-      <path d='m9.4 16 2.6 1.5 2.6-1.5.6 2.2-3.2 1-3.2-1 .6-2.2Z' fill='#d7c1b3' />
-    </svg>
-  );
-}
-
 const WalletGuideIcon = ({ icon, variant }: { icon?: string; variant: WalletGuideIconVariant }) => {
-  if (icon) {
-    return <WalletGuideIconImage src={icon} alt='' />;
+  if (variant === 'metamask') {
+    return <WalletGuideIconImage src={metaMaskWalletLogo} alt='' />;
   }
 
-  if (variant === 'metamask') {
-    return (
-      <IconBox variant='metamask' style={{ width: 48, height: 48, borderRadius: 10, marginRight: 0, fontSize: 19 }}>
-        <MetaMaskGlyph />
-      </IconBox>
-    );
+  if (icon) {
+    return <WalletGuideIconImage src={icon} alt='' />;
   }
 
   if (variant === 'bitget') {
@@ -422,13 +401,7 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
       walletId: metaMaskWallet && metaMaskWallet.id,
       walletRdns: metaMaskWallet && metaMaskWallet.rdns,
       installUrl: metaMaskWallet ? undefined : 'https://metamask.io/download/',
-      icon: (
-        <WalletIcon icon={metaMaskWallet && metaMaskWallet.icon}>
-          <IconBox variant='metamask'>
-            <MetaMaskGlyph />
-          </IconBox>
-        </WalletIcon>
-      ),
+      icon: <WalletIconImage src={metaMaskWalletLogo} alt='' />,
     },
     {
       key: 'walletconnect',
