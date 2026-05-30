@@ -117,7 +117,6 @@ const useStyes = makeStyles((theme) => ({
   },
   networkIndicatorMobile: {
     width: '100%',
-    maxWidth: 250,
   },
 }));
 
