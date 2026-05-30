@@ -13,6 +13,7 @@ import {
 import { useConnectWalletSectionTranslations } from '../../translations/translationsHooks';
 import { CommonDialog } from '../../components/modal/CommonDialog';
 import useTheme from '@material-ui/core/styles/useTheme';
+import { QRCode } from 'react-qrcode-logo';
 import { WalletGuideIconVariant, walletGuideOptions } from './walletGuideOptions';
 import bitgetWalletLogo from '../../../assets/wallets/bitget-wallet.png';
 import metaMaskWalletLogo from '../../../assets/wallets/MetaMask-icon-fox-with-margins.svg';
@@ -37,11 +38,16 @@ type WalletOption = {
   installUrl?: string;
 };
 
-type DialogView = 'wallet-info' | 'get-wallet';
+type DialogView = 'wallet-info' | 'get-wallet' | 'tetra-mobile';
+
+const TETRA_MOBILE_APP_STORE_URL = 'https://apps.apple.com/kr/app/tetra-mobile/id6453168712?l=en-GB';
+const TETRA_MOBILE_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.orbs.pos.klip';
 
 const DialogFrame = styled(Box)(({ theme }) => ({
+  boxSizing: 'border-box',
   width: 760,
   minHeight: 500,
+  maxHeight: 'calc(100vh - 32px)',
   display: 'grid',
   gridTemplateColumns: '300px 1fr',
   background: '#17181d',
@@ -50,28 +56,43 @@ const DialogFrame = styled(Box)(({ theme }) => ({
   overflow: 'hidden',
 
   [theme.breakpoints.down('sm')]: {
-    width: 'calc(100vw - 16px)',
+    width: 'calc(100vw - 24px)',
+    maxWidth: '100%',
+    height: 'calc(100vh - 16px)',
+    maxHeight: 'calc(100vh - 16px)',
     minHeight: 'unset',
     gridTemplateColumns: '1fr',
+    gridTemplateRows: 'auto minmax(0, 1fr)',
   },
 }));
 
 const WalletPane = styled(Box)(({ theme }) => ({
+  boxSizing: 'border-box',
+  minWidth: 0,
   borderRight: '1px solid rgba(255, 255, 255, 0.08)',
   padding: '28px 24px',
 
   [theme.breakpoints.down('sm')]: {
     borderRight: 0,
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    maxHeight: '42vh',
+    overflowX: 'hidden',
+    overflowY: 'auto',
     padding: '22px 18px',
   },
 }));
 
 const InfoPane = styled(Box)(({ theme }) => ({
+  boxSizing: 'border-box',
+  minWidth: 0,
   padding: '74px 54px 40px',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
+  minHeight: 0,
+  overflowX: 'hidden',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
 
   [theme.breakpoints.down('sm')]: {
     padding: '28px 22px 30px',
@@ -79,18 +100,25 @@ const InfoPane = styled(Box)(({ theme }) => ({
 }));
 
 const WalletGuidePane = styled(Box)(({ theme }) => ({
+  boxSizing: 'border-box',
+  minWidth: 0,
   padding: '20px 24px 28px',
   display: 'flex',
   flexDirection: 'column',
   minHeight: 500,
+  overflowX: 'hidden',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
 
   [theme.breakpoints.down('sm')]: {
-    minHeight: 420,
+    minHeight: 0,
     padding: '18px 18px 24px',
   },
 }));
 
 const WalletGuideHeader = styled(Box)({
+  width: '100%',
+  minWidth: 0,
   minHeight: 34,
   display: 'grid',
   gridTemplateColumns: '34px 1fr 34px',
@@ -258,6 +286,7 @@ const FeatureRow = styled(Box)({
   gridTemplateColumns: '54px 1fr',
   gap: 18,
   width: '100%',
+  minWidth: 0,
   marginTop: 28,
 });
 
@@ -274,16 +303,34 @@ const FeatureDescription = styled(Typography)({
   lineHeight: 1.5,
 });
 
-const ImportButton = styled.button(({ theme }) => ({
-  marginTop: 36,
-  border: 0,
+const WalletInfoActionButton = styled.button<{ variant: 'primary' | 'secondary' }>(({ variant }) => ({
+  appearance: 'none',
+  boxSizing: 'border-box',
+  width: 132,
+  height: 40,
+  minWidth: 132,
+  maxWidth: 132,
+  flex: '0 0 auto',
+  marginTop: variant === 'primary' ? 36 : 10,
+  border: '1px solid #26B47E',
   borderRadius: 5,
-  background: '#26B47E',
+  background: variant === 'primary' ? '#26B47E' : 'rgba(38, 180, 126, 0.14)',
   color: '#ffffff',
-  fontSize: 14,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: 'inherit',
+  fontSize: 13,
   fontWeight: 800,
-  padding: '11px 20px',
+  lineHeight: '16px',
+  letterSpacing: 0,
+  padding: 0,
+  whiteSpace: 'nowrap',
   cursor: 'pointer',
+
+  '&:hover': {
+    background: variant === 'primary' ? '#26B47E' : 'rgba(38, 180, 126, 0.24)',
+  },
 }));
 
 const LearnMoreButton = styled.button(({ theme }) => ({
@@ -295,6 +342,73 @@ const LearnMoreButton = styled.button(({ theme }) => ({
   fontWeight: 800,
   cursor: 'pointer',
 }));
+
+const TetraMobileIntro = styled(Typography)({
+  color: '#aaaeba',
+  fontSize: 14,
+  lineHeight: 1.6,
+  marginTop: 24,
+  textAlign: 'center',
+});
+
+const StoreLinkGrid = styled(Box)(({ theme }) => ({
+  boxSizing: 'border-box',
+  width: '100%',
+  minWidth: 0,
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 16,
+  marginTop: 28,
+
+  [theme.breakpoints.down('sm')]: {
+    gridTemplateColumns: '1fr',
+  },
+}));
+
+const StoreLinkCard = styled(Box)({
+  minWidth: 0,
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  borderRadius: 8,
+  padding: 14,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  background: 'rgba(255, 255, 255, 0.035)',
+});
+
+const StoreName = styled(Typography)({
+  color: '#f7f7f8',
+  fontSize: 15,
+  fontWeight: 800,
+  marginBottom: 10,
+});
+
+const QrCodeBox = styled(Box)({
+  width: 132,
+  height: 132,
+  borderRadius: 8,
+  overflow: 'hidden',
+  background: '#ffffff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+const StoreOpenButton = styled.button({
+  marginTop: 12,
+  border: 0,
+  borderRadius: 5,
+  background: '#26B47E',
+  color: '#ffffff',
+  fontSize: 13,
+  fontWeight: 800,
+  padding: '8px 14px',
+  cursor: 'pointer',
+
+  '&:hover': {
+    filter: 'brightness(1.08)',
+  },
+});
 
 const AssetClusterIcon = () => (
   <IconBox variant='asset'>
@@ -326,6 +440,28 @@ function WalletIcon({ icon, children }: { icon?: string; children: React.ReactNo
   return icon ? <WalletIconImage src={icon} alt='' /> : <>{children}</>;
 }
 
+function TetraMobileStoreCard({
+  title,
+  buttonText,
+  url,
+  onOpen,
+}: {
+  title: string;
+  buttonText: string;
+  url: string;
+  onOpen: (url: string) => void;
+}) {
+  return (
+    <StoreLinkCard>
+      <StoreName>{title}</StoreName>
+      <QrCodeBox>
+        <QRCode value={url} size={112} quietZone={4} qrStyle='dots' fgColor='#111217' />
+      </QrCodeBox>
+      <StoreOpenButton onClick={() => onOpen(url)}>{buttonText}</StoreOpenButton>
+    </StoreLinkCard>
+  );
+}
+
 function WalletConnectGlyph() {
   return (
     <svg width='24' height='16' viewBox='0 0 24 16' aria-hidden='true'>
@@ -355,6 +491,11 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
   const [view, setView] = useState<DialogView>('wallet-info');
   const [installedWallets, setInstalledWallets] = useState<InstalledWallet[]>([]);
   const openWalletGuide = () => window.open('https://ethereum.org/wallets/', '_blank');
+
+  const guideTitle =
+    view === 'get-wallet'
+      ? connectWalletSectionTranslations('getWalletTitle')
+      : connectWalletSectionTranslations('tetraMobileTitle');
 
   useEffect(() => {
     if (!open) {
@@ -519,12 +660,15 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
               </Box>
             </FeatureRow>
 
-            <ImportButton onClick={() => setView('get-wallet')}>
+            <WalletInfoActionButton variant='primary' onClick={() => setView('get-wallet')}>
               {connectWalletSectionTranslations('getWallet')}
-            </ImportButton>
+            </WalletInfoActionButton>
+            <WalletInfoActionButton variant='secondary' onClick={() => setView('tetra-mobile')}>
+              {connectWalletSectionTranslations('tetraMobile')}
+            </WalletInfoActionButton>
             <LearnMoreButton onClick={openWalletGuide}>{connectWalletSectionTranslations('learnMore')}</LearnMoreButton>
           </InfoPane>
-        ) : (
+        ) : view === 'get-wallet' ? (
           <WalletGuidePane>
             <WalletGuideHeader>
               <BackButton
@@ -534,7 +678,7 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
                 <ArrowBackIcon style={{ fontSize: 22 }} />
               </BackButton>
               <Typography variant='h6' style={{ fontWeight: 800, fontSize: isSmall ? 18 : 20, textAlign: 'center' }}>
-                {connectWalletSectionTranslations('getWalletTitle')}
+                {guideTitle}
               </Typography>
               <span />
             </WalletGuideHeader>
@@ -568,6 +712,38 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
               <FeatureTitle>{connectWalletSectionTranslations('walletGuideEmptyTitle')}</FeatureTitle>
               <FeatureDescription>{connectWalletSectionTranslations('walletGuideEmptyDescription')}</FeatureDescription>
             </WalletGuideEmptyState>
+          </WalletGuidePane>
+        ) : (
+          <WalletGuidePane>
+            <WalletGuideHeader>
+              <BackButton
+                onClick={() => setView('wallet-info')}
+                aria-label={connectWalletSectionTranslations('whatIsWallet')}
+              >
+                <ArrowBackIcon style={{ fontSize: 22 }} />
+              </BackButton>
+              <Typography variant='h6' style={{ fontWeight: 800, fontSize: isSmall ? 18 : 20, textAlign: 'center' }}>
+                {guideTitle}
+              </Typography>
+              <span />
+            </WalletGuideHeader>
+
+            <TetraMobileIntro>{connectWalletSectionTranslations('tetraMobileDescription')}</TetraMobileIntro>
+
+            <StoreLinkGrid>
+              <TetraMobileStoreCard
+                title={connectWalletSectionTranslations('tetraMobileIos')}
+                buttonText={connectWalletSectionTranslations('openStore')}
+                url={TETRA_MOBILE_APP_STORE_URL}
+                onOpen={openWalletInstallPage}
+              />
+              <TetraMobileStoreCard
+                title={connectWalletSectionTranslations('tetraMobileAndroid')}
+                buttonText={connectWalletSectionTranslations('openStore')}
+                url={TETRA_MOBILE_PLAY_STORE_URL}
+                onOpen={openWalletInstallPage}
+              />
+            </StoreLinkGrid>
           </WalletGuidePane>
         )}
       </DialogFrame>

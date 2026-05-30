@@ -77,6 +77,12 @@ export interface IConnectWalletSectionTranslations {
   getWallet: string;
   get: string;
   getWalletTitle: string;
+  tetraMobile: string;
+  tetraMobileTitle: string;
+  tetraMobileDescription: string;
+  tetraMobileIos: string;
+  tetraMobileAndroid: string;
+  openStore: string;
   walletGuideEmptyTitle: string;
   walletGuideEmptyDescription: string;
   learnMore: string;
