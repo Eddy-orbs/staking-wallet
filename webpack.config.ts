@@ -30,6 +30,20 @@ const plugins = [
       from: './CNAME',
     },
   ]),
+  new CopyWebpackPlugin([
+    {
+      from: './manifest.webmanifest',
+    },
+    {
+      from: './sw.js',
+    },
+    {
+      from: './pwa-icon-192.png',
+    },
+    {
+      from: './pwa-icon-512.png',
+    },
+  ]),
   // Adds the favicons to the dist
   // DEV_NOTE : this plugin replaces the usage of 'process.env.X' with the actual values of the key.
   new webpack.DefinePlugin(createEnvObjectForWebpack(envFromPathMergedWithRuntime)),
