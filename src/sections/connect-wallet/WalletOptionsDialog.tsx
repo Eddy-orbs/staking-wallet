@@ -464,9 +464,9 @@ function TetraMobileStoreCard({
 
 function WalletConnectGlyph() {
   return (
-    <svg width='24' height='16' viewBox='0 0 24 16' aria-hidden='true'>
+    <svg width='24' height='24' viewBox='0 0 1024 1024' aria-hidden='true'>
       <path
-        d='M5.1 5.2c3.8-3.7 9.9-3.7 13.8 0l.5.5c.2.2.2.5 0 .7l-1.7 1.7c-.1.1-.4.1-.5 0l-.7-.7c-2.5-2.4-6.5-2.4-9 0l-.7.7c-.1.1-.4.1-.5 0L4.6 6.4c-.2-.2-.2-.5 0-.7l.5-.5Zm17.1 3.7 1.5 1.5c.2.2.2.5 0 .7l-6.7 6.5c-.2.2-.5.2-.7 0l-4.7-4.6c-.1-.1-.3-.1-.4 0l-4.7 4.6c-.2.2-.5.2-.7 0L.1 11.1c-.2-.2-.2-.5 0-.7l1.5-1.5c.2-.2.5-.2.7 0l4.7 4.6c.1.1.3.1.4 0l4.7-4.6c.2-.2.5-.2.7 0l4.7 4.6c.1.1.3.1.4 0l4.7-4.6c.1-.2.4-.2.6 0Z'
+        d='M282.298 367.394C409.986 242.869 617.015 242.869 744.703 367.394L760.071 382.38C766.456 388.605 766.456 398.701 760.071 404.926L707.502 456.193C704.309 459.306 699.134 459.306 695.942 456.193L674.794 435.57C585.713 348.698 441.288 348.698 352.207 435.57L329.558 457.655C326.365 460.768 321.191 460.768 317.998 457.655L265.429 406.388C259.043 400.163 259.043 390.068 265.429 383.843L282.298 367.394ZM853.425 473.418L900.211 519.045C906.596 525.27 906.596 535.365 900.211 541.59L689.242 747.329C682.86 753.557 672.508 753.557 666.123 747.329L516.392 601.312C514.795 599.754 512.208 599.754 510.612 601.312L360.881 747.329C354.498 753.557 344.147 753.557 337.761 747.329L126.788 541.587C120.404 535.362 120.404 525.267 126.788 519.042L173.576 473.415C179.96 467.19 190.312 467.19 196.696 473.415L346.43 619.435C348.026 620.992 350.613 620.992 352.21 619.435L501.937 473.415C508.32 467.187 518.672 467.187 525.057 473.415L674.791 619.435C676.387 620.992 678.975 620.992 680.571 619.435L830.305 473.418C836.687 467.19 847.039 467.19 853.425 473.418Z'
         fill='currentColor'
       />
     </svg>
@@ -534,6 +534,16 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
   const bitgetWallet = getInstalledWalletByName(installedWallets, 'Bitget');
   const popularWallets: WalletOption[] = [
     {
+      key: 'walletconnect',
+      labelKey: 'walletConnect',
+      providerType: 'reown',
+      icon: (
+        <IconBox variant='walletconnect'>
+          <WalletConnectGlyph />
+        </IconBox>
+      ),
+    },
+    {
       key: 'metamask',
       labelKey: 'metamask',
       providerType: 'injected',
@@ -543,16 +553,6 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
       walletRdns: metaMaskWallet && metaMaskWallet.rdns,
       installUrl: metaMaskWallet ? undefined : 'https://metamask.io/download/',
       icon: <WalletIconImage src={metaMaskWalletLogo} alt='' />,
-    },
-    {
-      key: 'walletconnect',
-      labelKey: 'walletConnect',
-      providerType: 'reown',
-      icon: (
-        <IconBox variant='walletconnect'>
-          <WalletConnectGlyph />
-        </IconBox>
-      ),
     },
     {
       key: 'bitget',
