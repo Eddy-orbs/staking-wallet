@@ -8,7 +8,6 @@ import { GuardianDisplayPage } from './pages/GuardiansDisplayPage';
 import useMonitoring from './components/hooks/useMonitoring';
 import useLanguage from './components/hooks/useLanguage';
 import { MobXProviderContext, observer } from 'mobx-react';
-import AppVersion from './components/app-version/index';
 import './services/error-monitoring/index';
 import routes from './router/routes';
 import ChainTopBackground from './components/chain/ChainTopBackground';
@@ -51,7 +50,6 @@ export const App = observer(() => {
           <Route exact path={routes.main} component={MainAppPage} />
         </Switch>
       </ContentContainer>
-      <AppVersion />
       <Footer />
     </main>
   );

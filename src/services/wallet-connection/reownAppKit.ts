@@ -12,7 +12,7 @@ let appKit: any = null;
 let initializationError: Error | null = null;
 
 function getProjectId() {
-  return process.env.REOWN_PROJECT_ID || process.env.WALLETCONNECT_PROJECT_ID || '';
+  return process.env.REOWN_PROJECT_ID || '';
 }
 
 function getMetadata() {
@@ -101,7 +101,7 @@ export function getReownAppKit(targetChainId?: number) {
   const projectId = getProjectId();
 
   if (!projectId) {
-    throw new Error('Missing REOWN_PROJECT_ID or WALLETCONNECT_PROJECT_ID');
+    throw new Error('Missing REOWN_PROJECT_ID');
   }
 
   const { createAppKit, Ethers5Adapter } = getReownModules();

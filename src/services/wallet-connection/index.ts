@@ -80,7 +80,7 @@ function normalizeChainId(chainId: string | number | null | undefined): number |
 }
 
 function getProjectId() {
-  return process.env.REOWN_PROJECT_ID || process.env.WALLETCONNECT_PROJECT_ID || '';
+  return process.env.REOWN_PROJECT_ID || '';
 }
 
 function getMetadata() {
@@ -655,7 +655,7 @@ async function createWalletConnectProvider(targetChainId?: number): Promise<Eip1
   const projectId = getProjectId();
 
   if (!projectId) {
-    throw new Error('Missing REOWN_PROJECT_ID or WALLETCONNECT_PROJECT_ID');
+    throw new Error('Missing REOWN_PROJECT_ID');
   }
 
   await loadWalletConnectScript();

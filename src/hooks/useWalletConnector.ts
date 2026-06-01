@@ -6,7 +6,7 @@ import { ConnectWalletOptions, walletConnection, WalletProviderType } from '../s
 function getConnectionErrorMessage(error: any) {
   const message = error && error.message ? error.message : '';
 
-  if (message.includes('Missing REOWN_PROJECT_ID') || message.includes('WALLETCONNECT_PROJECT_ID')) {
+  if (message.includes('Missing REOWN_PROJECT_ID')) {
     return 'Reown project id is not configured. Please set REOWN_PROJECT_ID and restart the dev server.';
   }
 
