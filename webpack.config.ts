@@ -11,6 +11,13 @@ import { createEnvObjectForWebpack } from './webpackUtils';
 const envFilePath = process.env.ENV_FILE || '.env';
 const envFromFile = dotenv.config({ path: envFilePath }).parsed;
 const envFromPathMergedWithRuntime = { ...envFromFile, ...process.env };
+
+function normalizePublicBasePath(basePath?: string) {
+  const fallbackBasePath = basePath || '/';
+  return fallbackBasePath.endsWith('/') ? fallbackBasePath : `${fallbackBasePath}/`;
+}
+
+const publicBasePath = normalizePublicBasePath(envFromPathMergedWithRuntime.PUBLIC_BASE_PATH);
 const plugins = [
   new ForkTsCheckerWebpackPlugin({
     tsconfig: path.join(__dirname, 'src', 'tsconfig.json'),
@@ -19,6 +26,7 @@ const plugins = [
   new HtmlWebpackPlugin({
     title: 'ORBS Staking Wallet',
     template: 'index.html',
+    publicBasePath,
   }),
   new CopyWebpackPlugin([
     {
@@ -114,19 +122,13 @@ const config: Configuration = {
   output: {
     path: path.join(__dirname, 'dist'),
     filename: `[name]-[hash:8]-bundle.js`,
-    publicPath: process.env.PUBLIC_BASE_PATH,
+    publicPath: publicBasePath,
   },
   resolve: {
     extensions: ['.mjs', '.js', '.ts', '.tsx'],
     alias: {
-      '@reown/appkit-utils/ethers$': path.resolve(
-        nodeModulesPath,
-        '@reown/appkit-utils/dist/esm/exports/ethers.js',
-      ),
-      '@reown/appkit-wallet/utils$': path.resolve(
-        nodeModulesPath,
-        '@reown/appkit-wallet/dist/esm/exports/utils.js',
-      ),
+      '@reown/appkit-utils/ethers$': path.resolve(nodeModulesPath, '@reown/appkit-utils/dist/esm/exports/ethers.js'),
+      '@reown/appkit-wallet/utils$': path.resolve(nodeModulesPath, '@reown/appkit-wallet/dist/esm/exports/utils.js'),
       '@reown/appkit-controllers/features$': path.resolve(
         nodeModulesPath,
         '@reown/appkit-controllers/dist/esm/exports/features.js',
@@ -181,10 +183,7 @@ const config: Configuration = {
       ),
       '@reown/appkit-ui$': path.resolve(nodeModulesPath, '@reown/appkit-ui/dist/esm/exports/index.js'),
       '@base-org/account$': path.resolve(__dirname, 'src/services/wallet-connection/reownOptionalWalletStubs.ts'),
-      '@coinbase/wallet-sdk$': path.resolve(
-        __dirname,
-        'src/services/wallet-connection/reownOptionalWalletStubs.ts',
-      ),
+      '@coinbase/wallet-sdk$': path.resolve(__dirname, 'src/services/wallet-connection/reownOptionalWalletStubs.ts'),
       '@safe-global/safe-apps-provider$': path.resolve(
         __dirname,
         'src/services/wallet-connection/reownOptionalWalletStubs.ts',

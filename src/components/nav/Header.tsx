@@ -212,7 +212,6 @@ export const Header = () => {
       />
       <WalletOptionsDialog
         open={showWalletOptions}
-        hasBrowserWallet={true}
         onClose={() => setShowWalletOptions(false)}
         onSelect={handleWalletSelected}
       />

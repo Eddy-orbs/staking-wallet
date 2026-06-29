@@ -1,9 +1,10 @@
 import config from '../../../config';
 import { DEFAULT_CHAIN, NETWORK_QUERY_PARAM } from '../../constants';
+import { getSupportedChains } from '../../utils';
 
 declare const require: any;
 
-const REOWN_SUPPORTED_CHAINS = [1, 137];
+const DEFAULT_SUPPORTED_REOWN_CHAINS = [1, 137];
 const REOWN_CONNECT_TIMEOUT_MS = 120000;
 const REOWN_RESTORE_TIMEOUT_MS = 5000;
 const EIP155_NAMESPACE = 'eip155';
@@ -59,9 +60,29 @@ function getReownNetwork(chainId: number) {
   };
 }
 
+function getReownSupportedChains() {
+  const configuredChains = getSupportedChains().filter((chainId) => {
+    const network = config.networks[chainId];
+    return network && network.nativeCurrency && network.rpcUrls && network.rpcUrls.length;
+  });
+
+  if (configuredChains.length) {
+    return configuredChains;
+  }
+
+  return DEFAULT_SUPPORTED_REOWN_CHAINS.filter((chainId) => {
+    const network = config.networks[chainId];
+    return network && network.nativeCurrency && network.rpcUrls && network.rpcUrls.length;
+  });
+}
+
 function getReownNetworks(targetChainId?: number) {
-  const supportedNetworks = REOWN_SUPPORTED_CHAINS.map(getReownNetwork);
-  const selected = targetChainId && REOWN_SUPPORTED_CHAINS.includes(targetChainId) ? targetChainId : 1;
+  const supportedChains = getReownSupportedChains();
+  const supportedNetworks = supportedChains.map(getReownNetwork);
+  const fallbackChain = supportedChains.includes(Number(DEFAULT_CHAIN))
+    ? Number(DEFAULT_CHAIN)
+    : supportedChains[0] || Number(DEFAULT_CHAIN);
+  const selected = targetChainId && supportedChains.includes(targetChainId) ? targetChainId : fallbackChain;
 
   return [getReownNetwork(selected), ...supportedNetworks.filter((network) => network.id !== selected)] as [
     any,
@@ -70,7 +91,7 @@ function getReownNetworks(targetChainId?: number) {
 }
 
 function getCustomRpcUrls() {
-  return REOWN_SUPPORTED_CHAINS.reduce((rpcUrls, chainId) => {
+  return getReownSupportedChains().reduce((rpcUrls, chainId) => {
     const network = config.networks[chainId];
 
     if (network && network.rpcUrls && network.rpcUrls.length) {
@@ -145,8 +166,9 @@ export function getReownAppKit(targetChainId?: number) {
 function getInitialTargetChainId() {
   const chainId = new URLSearchParams(window.location.search).get(NETWORK_QUERY_PARAM);
   const parsedChainId = chainId ? Number(chainId) : DEFAULT_CHAIN;
+  const supportedChains = getReownSupportedChains();
 
-  return REOWN_SUPPORTED_CHAINS.includes(parsedChainId) ? parsedChainId : DEFAULT_CHAIN;
+  return supportedChains.includes(parsedChainId) ? parsedChainId : DEFAULT_CHAIN;
 }
 
 export function initializeReownAppKit(targetChainId?: number) {

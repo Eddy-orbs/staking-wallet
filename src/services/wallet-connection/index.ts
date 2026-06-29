@@ -1,7 +1,6 @@
 import Web3 from 'web3';
 import config from '../../../config';
 import { DEFAULT_CHAIN } from '../../constants';
-import { getSupportedChains } from '../../utils';
 import { web3Modal } from '../web3modal';
 import {
   disconnectReownAppKit,
@@ -16,17 +15,12 @@ import {
 } from './reownAppKit';
 import { ConnectedWallet, ConnectWalletOptions, Eip1193Provider, InstalledWallet, WalletProviderType } from './types';
 
-const WALLETCONNECT_UMD_URL = 'https://unpkg.com/@walletconnect/ethereum-provider@2.23.9/dist/index.umd.js';
 const LAST_PROVIDER_KEY = 'orbs.walletConnection.lastProviderType';
 const LAST_INJECTED_WALLET_KEY = 'orbs.walletConnection.lastInjectedWallet';
-const WALLETCONNECT_SUPPORTED_CHAINS = [1, 137];
-const WALLETCONNECT_CONNECT_TIMEOUT_MS = 120000;
 const NETWORK_SWITCH_SETTLE_TIMEOUT_MS = 5000;
 const REOWN_NETWORK_SWITCH_TIMEOUT_MS = 15000;
 const CHAIN_READ_TIMEOUT_MS = 3000;
 
-let walletConnectScriptLoading: Promise<void> | null = null;
-let walletConnectProvider: Eip1193Provider | null = null;
 const announcedProviders: any[] = [];
 const installedWalletListeners: Array<(wallets: InstalledWallet[]) => void> = [];
 let eip6963Listening = false;
@@ -79,45 +73,6 @@ function normalizeChainId(chainId: string | number | null | undefined): number |
   return chainId.startsWith('0x') ? parseInt(chainId, 16) : Number(chainId);
 }
 
-function getProjectId() {
-  return process.env.REOWN_PROJECT_ID || '';
-}
-
-function getMetadata() {
-  const origin = window.location.origin;
-
-  return {
-    name: 'ORBS Staking Wallet',
-    description: 'ORBS staking wallet',
-    url: origin,
-    icons: [`${origin}/favicon.png`],
-  };
-}
-
-function getWalletConnectChains(targetChainId?: number): number[] {
-  const configuredChains = getSupportedChains();
-  const supportedChains = WALLETCONNECT_SUPPORTED_CHAINS.filter((chainId) => {
-    const network = config.networks[chainId];
-    return network && network.rpcUrls && network.rpcUrls[0];
-  });
-
-  const chains = supportedChains.length ? supportedChains : configuredChains;
-  const selectedChain = targetChainId && chains.includes(targetChainId) ? targetChainId : Number(DEFAULT_CHAIN);
-
-  return [selectedChain, ...chains.filter((chainId) => chainId !== selectedChain)];
-}
-
-function getRpcMap() {
-  return getWalletConnectChains().reduce((rpcMap, chainId) => {
-    const network = config.networks[chainId];
-    if (network && network.rpcUrls && network.rpcUrls[0]) {
-      rpcMap[chainId] = network.rpcUrls[0];
-    }
-
-    return rpcMap;
-  }, {} as { [chainId: number]: string });
-}
-
 function getSwitchErrorCode(error: any): number | string | undefined {
   return error && (error.code || (error.data && error.data.originalError && error.data.originalError.code));
 }
@@ -162,21 +117,6 @@ async function readAccounts(provider: Eip1193Provider): Promise<string[]> {
   return [];
 }
 
-async function readConnectedAccounts(provider: Eip1193Provider): Promise<string[]> {
-  if (provider.accounts && provider.accounts.length) {
-    return provider.accounts;
-  }
-
-  if (provider.request) {
-    const accounts = await provider.request({ method: 'eth_accounts' });
-    if (accounts && accounts.length) {
-      return accounts;
-    }
-  }
-
-  return readAccounts(provider);
-}
-
 async function readAuthorizedAccounts(provider: Eip1193Provider): Promise<string[]> {
   if (provider.accounts && provider.accounts.length) {
     return provider.accounts;
@@ -205,14 +145,6 @@ async function readChainId(provider: Eip1193Provider): Promise<number | null> {
   return web3.eth.getChainId();
 }
 
-async function readChainIdSafely(provider: Eip1193Provider): Promise<number | null> {
-  try {
-    return await withTimeout(readChainId(provider), CHAIN_READ_TIMEOUT_MS, 'Reading wallet chain id timed out');
-  } catch (error) {
-    return null;
-  }
-}
-
 function wait(delay: number) {
   return new Promise((resolve) => setTimeout(resolve, delay));
 }
@@ -222,6 +154,26 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: st
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs)),
   ]);
+}
+
+async function readChainIdSafely(provider: Eip1193Provider): Promise<number | null> {
+  try {
+    return await withTimeout(readChainId(provider), CHAIN_READ_TIMEOUT_MS, 'Reading wallet chain id timed out');
+  } catch (error) {
+    return null;
+  }
+}
+
+async function waitForResolvedReownChainId(appKit: any, provider: Eip1193Provider): Promise<number | null> {
+  const startedAt = Date.now();
+  let chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainIdSafely(provider));
+
+  while (!chainId && Date.now() - startedAt < NETWORK_SWITCH_SETTLE_TIMEOUT_MS) {
+    await wait(250);
+    chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainIdSafely(provider));
+  }
+
+  return chainId;
 }
 
 async function waitForProviderChain(provider: Eip1193Provider, targetChainId: number): Promise<number | null> {
@@ -509,37 +461,6 @@ function initializeInstalledWalletDiscovery() {
 
 initializeInstalledWalletDiscovery();
 
-function waitForWalletConnectEvent(provider: Eip1193Provider, eventName: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (!provider.on) {
-      return;
-    }
-
-    provider.on(eventName, () => resolve());
-  });
-}
-
-async function connectWalletConnectSession(provider: Eip1193Provider, targetChainId?: number): Promise<void> {
-  if (provider.session) {
-    return;
-  }
-
-  const walletConnectChains = getWalletConnectChains(targetChainId);
-  const connectAction = provider.connect
-    ? provider.connect({ chains: walletConnectChains })
-    : provider.enable
-    ? provider.enable()
-    : Promise.resolve();
-
-  await Promise.race([
-    Promise.resolve(connectAction).then(() => undefined),
-    waitForWalletConnectEvent(provider, 'connect'),
-    new Promise<void>((_, reject) =>
-      setTimeout(() => reject(new Error('WalletConnect connection timed out')), WALLETCONNECT_CONNECT_TIMEOUT_MS),
-    ),
-  ]);
-}
-
 function setLastProvider(providerType: WalletProviderType | null) {
   try {
     if (providerType) {
@@ -630,57 +551,6 @@ async function waitForPreferredInjectedWallet(
   return null;
 }
 
-function loadWalletConnectScript(): Promise<void> {
-  if ((window as any)['@walletconnect/ethereum-provider']) {
-    return Promise.resolve();
-  }
-
-  if (walletConnectScriptLoading) {
-    return walletConnectScriptLoading;
-  }
-
-  walletConnectScriptLoading = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = WALLETCONNECT_UMD_URL;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load WalletConnect provider'));
-    document.head.appendChild(script);
-  });
-
-  return walletConnectScriptLoading;
-}
-
-async function createWalletConnectProvider(targetChainId?: number): Promise<Eip1193Provider> {
-  const projectId = getProjectId();
-
-  if (!projectId) {
-    throw new Error('Missing REOWN_PROJECT_ID');
-  }
-
-  await loadWalletConnectScript();
-
-  const walletConnect = (window as any)['@walletconnect/ethereum-provider'];
-  const EthereumProvider = walletConnect && (walletConnect.EthereumProvider || walletConnect.default);
-
-  if (!EthereumProvider || !EthereumProvider.init) {
-    throw new Error('WalletConnect provider was not loaded correctly');
-  }
-
-  const walletConnectChains = getWalletConnectChains(targetChainId);
-
-  walletConnectProvider = await EthereumProvider.init({
-    projectId,
-    metadata: getMetadata(),
-    chains: walletConnectChains,
-    optionalChains: [],
-    rpcMap: getRpcMap(),
-    showQrModal: true,
-  });
-
-  return walletConnectProvider;
-}
-
 async function connectInjected(options: ConnectWalletOptions = {}): Promise<ConnectedWallet> {
   let provider: Eip1193Provider;
   let walletName: string | null = options.walletName || null;
@@ -756,48 +626,6 @@ async function restoreInjected(targetChainId?: number): Promise<ConnectedWallet 
   };
 }
 
-async function connectWalletConnect(targetChainId?: number): Promise<ConnectedWallet> {
-  const provider = await createWalletConnectProvider(targetChainId);
-  await connectWalletConnectSession(provider, targetChainId);
-  const accounts = await readConnectedAccounts(provider);
-  const chainId = await readChainId(provider);
-
-  setLastProvider('walletconnect');
-
-  return {
-    provider,
-    address: accounts[0] || null,
-    chainId,
-    providerType: 'walletconnect',
-    walletName: 'WalletConnect',
-    isWalletConnect: true,
-  };
-}
-
-async function restoreWalletConnect(targetChainId?: number): Promise<ConnectedWallet | null> {
-  if (getLastProvider() !== 'walletconnect') {
-    return null;
-  }
-
-  const provider = await createWalletConnectProvider(targetChainId);
-
-  if (!(provider as any).session) {
-    return null;
-  }
-
-  const accounts = provider.request ? await provider.request({ method: 'eth_accounts' }) : [];
-  const chainId = await ensureProviderNetwork(provider, targetChainId);
-
-  return {
-    provider,
-    address: accounts[0] || null,
-    chainId,
-    providerType: 'walletconnect',
-    walletName: 'WalletConnect',
-    isWalletConnect: true,
-  };
-}
-
 async function connectReown(targetChainId?: number): Promise<ConnectedWallet> {
   const appKit = getReownAppKit(targetChainId);
 
@@ -815,8 +643,11 @@ async function connectReown(targetChainId?: number): Promise<ConnectedWallet> {
     await appKit.close();
   } catch (error) {}
 
-  const providerChainId =
-    normalizeChainId(getReownChainId(appKit)) || (await readChainIdSafely(provider)) || targetChainId || null;
+  const providerChainId = await waitForResolvedReownChainId(appKit, provider);
+
+  if (!providerChainId) {
+    throw new Error('Wallet network could not be verified');
+  }
 
   setLastProvider('reown');
 
@@ -831,7 +662,9 @@ async function connectReown(targetChainId?: number): Promise<ConnectedWallet> {
 }
 
 async function restoreReown(targetChainId?: number): Promise<ConnectedWallet | null> {
-  if (getLastProvider() !== 'reown') {
+  const lastProvider = getLastProvider();
+
+  if (lastProvider !== 'reown' && lastProvider !== 'walletconnect') {
     return null;
   }
 
@@ -844,7 +677,11 @@ async function restoreReown(targetChainId?: number): Promise<ConnectedWallet | n
 
   const { account, provider } = session;
 
-  let chainId = normalizeChainId(getReownChainId(appKit)) || (await readChainId(provider));
+  let chainId = await waitForResolvedReownChainId(appKit, provider);
+
+  if (!chainId) {
+    return null;
+  }
 
   if (targetChainId && chainId !== targetChainId) {
     chainId = await switchReownProviderNetwork(provider, targetChainId);
@@ -863,13 +700,13 @@ async function restoreReown(targetChainId?: number): Promise<ConnectedWallet | n
 export const walletConnection = {
   async connect(options: ConnectWalletOptions = {}): Promise<ConnectedWallet> {
     const providerType =
-      options.providerType || ((window as any).ethereum || (window as any).onto ? 'injected' : 'walletconnect');
+      options.providerType || ((window as any).ethereum || (window as any).onto ? 'injected' : 'reown');
 
-    if (providerType === 'reown') {
+    if (providerType === 'reown' || providerType === 'walletconnect') {
       return connectReown(options.targetChainId);
     }
 
-    return providerType === 'walletconnect' ? connectWalletConnect(options.targetChainId) : connectInjected(options);
+    return connectInjected(options);
   },
 
   async restore(options: ConnectWalletOptions = {}): Promise<ConnectedWallet | null> {
@@ -885,7 +722,7 @@ export const walletConnection = {
       return injectedWallet;
     }
 
-    return restoreWalletConnect(options.targetChainId);
+    return null;
   },
 
   async disconnect(): Promise<void> {
@@ -893,22 +730,19 @@ export const walletConnection = {
       await disconnectReownAppKit();
     } catch (error) {}
 
-    try {
-      if (walletConnectProvider && walletConnectProvider.disconnect) {
-        await walletConnectProvider.disconnect();
-      }
-    } catch (error) {}
-
     web3Modal.clearCachedProvider();
     setLastProvider(null);
     clearLastInjectedWallet();
-    walletConnectProvider = null;
   },
 
   clearCachedProvider(): void {
     web3Modal.clearCachedProvider();
     setLastProvider(null);
     clearLastInjectedWallet();
+  },
+
+  hasBrowserWallet(): boolean {
+    return getInstalledWalletsSnapshot().length > 0 || getLegacyInjectedProviders().length > 0;
   },
 
   async switchNetwork(

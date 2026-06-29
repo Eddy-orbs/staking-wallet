@@ -20,7 +20,6 @@ import metaMaskWalletLogo from '../../../assets/wallets/MetaMask-icon-fox-with-m
 
 interface IProps {
   open: boolean;
-  hasBrowserWallet: boolean;
   onClose: () => void;
   onSelect: (options: ConnectWalletOptions) => void;
 }
@@ -484,7 +483,7 @@ function BrowserWalletGlyph() {
   );
 }
 
-function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IProps) {
+function WalletOptionsDialog({ open, onClose, onSelect }: IProps) {
   const connectWalletSectionTranslations = useConnectWalletSectionTranslations();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
@@ -532,6 +531,7 @@ function WalletOptionsDialog({ open, hasBrowserWallet, onClose, onSelect }: IPro
 
   const metaMaskWallet = getInstalledWalletByName(installedWallets, 'MetaMask');
   const bitgetWallet = getInstalledWalletByName(installedWallets, 'Bitget');
+  const hasBrowserWallet = installedWallets.length > 0 || walletConnection.hasBrowserWallet();
   const popularWallets: WalletOption[] = [
     {
       key: 'walletconnect',

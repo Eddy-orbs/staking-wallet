@@ -99,11 +99,7 @@ class Web3Service {
         const switchedChainId = normalizeChainId(chainId);
         const pendingChainId = normalizeChainId(window.sessionStorage.getItem(PENDING_NETWORK_SWITCH_CHAIN_KEY));
 
-        if (
-          pendingChainId &&
-          getSupportedChains().includes(pendingChainId) &&
-          (!switchedChainId || switchedChainId === pendingChainId)
-        ) {
+        if (pendingChainId && getSupportedChains().includes(pendingChainId) && switchedChainId === pendingChainId) {
           window.location.replace(getChainUrl(pendingChainId));
           return;
         }
@@ -117,10 +113,10 @@ class Web3Service {
     const provider = this.provider;
     if (provider) {
       provider.on('accountsChanged', async function (accounts) {
-        window.location.reload();
         if (!accounts[0]) {
           walletConnection.clearCachedProvider();
         }
+        window.location.reload();
       });
     }
   };

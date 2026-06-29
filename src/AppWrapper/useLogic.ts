@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { uiConfig } from '../../config/ui-config';
 import useNetwork from '../hooks/useNetwork';
 import defaultFavicon from '../../assets/favicons/tet.png';
@@ -11,26 +11,36 @@ function useLogic() {
   const { setConnectedWallet } = useAppContext();
   const [providerLoading, setProviderLoading] = useState(false);
   const selected = forcedChain || chain || DEFAULT_CHAIN;
+  const restoreTarget = forcedChain || chain || (chainLoaded ? DEFAULT_CHAIN : undefined);
+  const restoredTargetRef = useRef<number | undefined>(undefined);
 
-  const eagerConnect = useCallback(async () => {
-    setProviderLoading(true);
-    try {
-      const connectedWallet = await walletConnection.restore({ targetChainId: selected });
-      if (connectedWallet && connectedWallet.chainId === Number(selected)) {
-        setConnectedWallet(connectedWallet);
-      } else if (connectedWallet) {
-        await walletConnection.disconnect();
+  const eagerConnect = useCallback(
+    async (targetChainId: number) => {
+      setProviderLoading(true);
+      try {
+        const connectedWallet = await walletConnection.restore({ targetChainId });
+        if (connectedWallet && connectedWallet.chainId === Number(targetChainId)) {
+          setConnectedWallet(connectedWallet);
+        } else if (connectedWallet) {
+          await walletConnection.disconnect();
+        }
+      } catch (error) {
+        walletConnection.clearCachedProvider();
+      } finally {
+        setProviderLoading(false);
       }
-    } catch (error) {
-      walletConnection.clearCachedProvider();
-    } finally {
-      setProviderLoading(false);
-    }
-  }, [selected, setConnectedWallet]);
+    },
+    [setConnectedWallet],
+  );
 
   useEffect(() => {
-    eagerConnect();
-  }, [eagerConnect]);
+    if (!chainLoaded || !restoreTarget || restoredTargetRef.current === restoreTarget) {
+      return;
+    }
+
+    restoredTargetRef.current = restoreTarget;
+    eagerConnect(restoreTarget);
+  }, [chainLoaded, restoreTarget, eagerConnect]);
 
   useEffect(() => {
     if (!selected) {

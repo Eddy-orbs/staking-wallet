@@ -5,6 +5,8 @@ export type Eip1193Provider = {
   enable?: () => Promise<string[]>;
   connect?: (options?: any) => Promise<any>;
   on?: (eventName: string, callback: (...args: any[]) => void) => void;
+  off?: (eventName: string, callback: (...args: any[]) => void) => void;
+  removeListener?: (eventName: string, callback: (...args: any[]) => void) => void;
   disconnect?: () => Promise<void>;
   setDefaultChain?: (chainId: string, rpcUrl?: string) => void | Promise<void>;
   accounts?: string[];
